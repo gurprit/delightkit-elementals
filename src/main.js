@@ -84,6 +84,24 @@ function fireMarkup() {
   const seedA = Math.floor(rand(1, 999));
   const seedB = Math.floor(rand(1000, 1999));
   const seedC = Math.floor(rand(2000, 2999));
+  const sliceCount = 15;
+  const sliceWidth = 240 / sliceCount;
+
+  const clips = Array.from({ length: sliceCount }, (_, index) => {
+    const x = index * sliceWidth - 1;
+    return `<clipPath id="fireSlice${index}" clipPathUnits="userSpaceOnUse">
+      <rect x="${x}" y="0" width="${sliceWidth + 2}" height="250" />
+    </clipPath>`;
+  }).join('');
+
+  const slices = Array.from({ length: sliceCount }, (_, index) => {
+    const center = (index + .5) * sliceWidth;
+    return `<g class="fire-slice" data-slice="${index}" data-center="${center.toFixed(2)}" clip-path="url(#fireSlice${index})">
+      <g class="fire-slice-content">
+        <use href="#fireVisual"></use>
+      </g>
+    </g>`;
+  }).join('');
 
   const wisps = Array.from({ length: 7 }, () => {
     const x = rand(33, 67);
@@ -163,71 +181,65 @@ function fireMarkup() {
             </feMerge>
           </filter>
 
-          <radialGradient id="fireHoverGradient">
-            <stop offset="0%" stop-color="black"/>
-            <stop offset="46%" stop-color="black"/>
-            <stop offset="76%" stop-color="#777"/>
-            <stop offset="100%" stop-color="white"/>
-          </radialGradient>
+          ${clips}
 
-          <mask id="fireHoverMask" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="250">
-            <rect x="0" y="0" width="240" height="250" fill="white"/>
-            <circle class="fire-hover-cutout" cx="120" cy="130" r="34" fill="url(#fireHoverGradient)"/>
-          </mask>
+          <g id="fireVisual">
+            <path
+              class="fire-layer fire-outer"
+              filter="url(#fireDistortOuter)"
+              fill="url(#fireOuter)"
+              d="M31 211
+                 C20 193 23 174 35 159
+                 C28 145 31 128 47 115
+                 C37 91 52 72 68 61
+                 C68 86 76 101 88 110
+                 C91 83 98 59 116 24
+                 C130 58 124 84 136 108
+                 C145 91 156 70 174 55
+                 C176 83 190 99 194 119
+                 C210 137 213 160 202 176
+                 C211 191 205 207 191 217
+                 C162 229 77 229 31 211 Z"
+            />
+
+            <path
+              class="fire-layer fire-mid"
+              filter="url(#fireDistortMid)"
+              fill="url(#fireMid)"
+              d="M51 214
+                 C40 191 49 173 62 159
+                 C56 143 64 128 79 116
+                 C75 99 82 84 95 69
+                 C99 91 106 108 116 118
+                 C120 94 128 78 141 60
+                 C145 88 156 104 164 120
+                 C177 139 180 162 171 178
+                 C181 197 170 213 157 220
+                 C128 229 81 227 51 214 Z"
+            />
+
+            <path
+              class="fire-layer fire-core"
+              filter="url(#fireDistortCore)"
+              fill="url(#fireCore)"
+              d="M75 217
+                 C66 202 70 184 84 171
+                 C80 156 87 142 101 132
+                 C98 115 104 100 116 85
+                 C123 105 126 121 126 139
+                 C135 124 143 111 151 100
+                 C154 127 163 143 158 162
+                 C169 181 158 205 144 216
+                 C123 225 95 225 75 217 Z"
+            />
+
+            <ellipse class="fire-hotbed" cx="120" cy="218" rx="73" ry="13" filter="url(#fireGlow)" fill="#ff7b00"/>
+            <ellipse class="fire-whitebed" cx="120" cy="215" rx="43" ry="7" filter="url(#fireGlow)" fill="#fff4a7"/>
+          </g>
         </defs>
 
-        <g class="fire-body" mask="url(#fireHoverMask)">
-          <path
-            class="fire-layer fire-outer"
-            filter="url(#fireDistortOuter)"
-            fill="url(#fireOuter)"
-            d="M31 211
-               C20 193 23 174 35 159
-               C28 145 31 128 47 115
-               C37 91 52 72 68 61
-               C68 86 76 101 88 110
-               C91 83 98 59 116 24
-               C130 58 124 84 136 108
-               C145 91 156 70 174 55
-               C176 83 190 99 194 119
-               C210 137 213 160 202 176
-               C211 191 205 207 191 217
-               C162 229 77 229 31 211 Z"
-          />
-
-          <path
-            class="fire-layer fire-mid"
-            filter="url(#fireDistortMid)"
-            fill="url(#fireMid)"
-            d="M51 214
-               C40 191 49 173 62 159
-               C56 143 64 128 79 116
-               C75 99 82 84 95 69
-               C99 91 106 108 116 118
-               C120 94 128 78 141 60
-               C145 88 156 104 164 120
-               C177 139 180 162 171 178
-               C181 197 170 213 157 220
-               C128 229 81 227 51 214 Z"
-          />
-
-          <path
-            class="fire-layer fire-core"
-            filter="url(#fireDistortCore)"
-            fill="url(#fireCore)"
-            d="M75 217
-               C66 202 70 184 84 171
-               C80 156 87 142 101 132
-               C98 115 104 100 116 85
-               C123 105 126 121 126 139
-               C135 124 143 111 151 100
-               C154 127 163 143 158 162
-               C169 181 158 205 144 216
-               C123 225 95 225 75 217 Z"
-          />
-
-          <ellipse class="fire-hotbed" cx="120" cy="218" rx="73" ry="13" filter="url(#fireGlow)" fill="#ff7b00"/>
-          <ellipse class="fire-whitebed" cx="120" cy="215" rx="43" ry="7" filter="url(#fireGlow)" fill="#fff4a7"/>
+        <g class="fire-body">
+          ${slices}
         </g>
       </svg>
 
@@ -323,31 +335,18 @@ function range(id,label,min,max,step,value,suffix) {
 }
 
 
-function spawnLocalSmoke(stage, event) {
-  const rect = stage.getBoundingClientRect();
-  const puff = document.createElement('i');
-  puff.className = 'local-fire-smoke';
-
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-
-  puff.style.left = `${x}px`;
-  puff.style.top = `${y}px`;
-  puff.style.setProperty('--local-smoke-drift', `${rand(-18, 18)}px`);
-  puff.style.setProperty('--local-smoke-rise', `${rand(34, 62)}px`);
-  puff.style.setProperty('--local-smoke-size', `${rand(15, 27)}px`);
-
-  stage.appendChild(puff);
-  window.setTimeout(() => puff.remove(), 1050);
-}
-
 function bindFireHover() {
   const stage = document.querySelector('.fire-stage');
   const svg = stage?.querySelector('.fire-svg');
-  const cutout = stage?.querySelector('.fire-hover-cutout');
-  if (!stage || !svg || !cutout) return;
+  const slices = [...(stage?.querySelectorAll('.fire-slice-content') ?? [])];
+  if (!stage || !svg || !slices.length) return;
 
-  let lastSmoke = 0;
+  const resetSlices = () => {
+    stage.classList.remove('hover-cooling');
+    slices.forEach(slice => {
+      slice.style.setProperty('--cool-scale', '1');
+    });
+  };
 
   const coolAtPointer = event => {
     if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
@@ -357,34 +356,36 @@ function bindFireHover() {
     const x = ((event.clientX - rect.left) / rect.width) * 240;
     const y = ((event.clientY - rect.top) / rect.height) * 250;
 
-    const vertical = Math.max(0, Math.min(1, (y - 18) / 205));
-    const halfWidth = 18 + 88 * vertical;
+    const vertical = Math.max(0, Math.min(1, (y - 20) / 205));
+    const halfWidth = 20 + 88 * vertical;
     const insideFlameZone =
-      y >= 15 &&
+      y >= 20 &&
       y <= 228 &&
       Math.abs(x - 120) <= halfWidth;
 
     if (!insideFlameZone) {
-      stage.classList.remove('hover-cooling');
+      resetSlices();
       return;
     }
 
-    cutout.setAttribute('cx', x.toFixed(1));
-    cutout.setAttribute('cy', y.toFixed(1));
-    cutout.setAttribute('r', (24 + vertical * 18).toFixed(1));
     stage.classList.add('hover-cooling');
 
-    const now = performance.now();
-    if (now - lastSmoke > 115) {
-      spawnLocalSmoke(stage, event);
-      lastSmoke = now;
-    }
+    const desiredTop = Math.max(42, Math.min(207, y + 9));
+    const desiredScale = Math.max(.08, Math.min(.9, (220 - desiredTop) / 196));
+    const radius = 54;
+
+    slices.forEach(slice => {
+      const center = Number(slice.parentElement?.dataset.center ?? 120);
+      const distance = Math.abs(center - x);
+      const normalized = Math.min(1, distance / radius);
+      const falloff = Math.pow(Math.cos(normalized * Math.PI * .5), 2);
+      const scale = 1 - (1 - desiredScale) * falloff;
+      slice.style.setProperty('--cool-scale', scale.toFixed(3));
+    });
   };
 
   stage.addEventListener('pointermove', coolAtPointer);
-  stage.addEventListener('pointerleave', () => {
-    stage.classList.remove('hover-cooling');
-  });
+  stage.addEventListener('pointerleave', resetSlices);
 }
 
 function bind() {
