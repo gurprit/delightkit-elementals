@@ -158,7 +158,7 @@ function stampFire() {
 
   window.setTimeout(() => {
     stage.classList.remove('extinguishing');
-  }, 3300 * state.duration);
+  }, 3300);
 }
 
 function triggerCurrent(target) {
