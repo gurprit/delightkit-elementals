@@ -495,3 +495,130 @@ nav{
   .flame,.fire-ember,.fire-aura,.fire-bed{animation:none}
   .fire-stage.extinguishing .fire-scene{animation:none}
 }
+
+
+/* Procedural SVG fire: connected body, fluid edge distortion, asynchronous heat zones */
+.fire-scene{
+  width:240px;
+  height:250px;
+}
+.fire-svg{
+  position:absolute;
+  left:50%;
+  bottom:9px;
+  width:240px;
+  height:250px;
+  transform:translateX(-50%);
+  overflow:visible;
+  pointer-events:none;
+  filter:drop-shadow(0 0 9px rgba(255,83,0,.34)) drop-shadow(0 0 28px rgba(255,73,0,.14));
+}
+.fire-body{
+  transform-origin:120px 220px;
+  animation:fireBodySway 1.17s cubic-bezier(.42,.04,.55,.96) -.37s infinite alternate;
+}
+.fire-layer{
+  transform-box:fill-box;
+  transform-origin:center bottom;
+  will-change:transform,opacity;
+}
+.fire-outer{
+  opacity:.84;
+  animation:fireOuterBreathe .83s cubic-bezier(.38,.02,.55,.98) -.19s infinite alternate;
+}
+.fire-mid{
+  opacity:.94;
+  mix-blend-mode:screen;
+  animation:fireMidBreathe .67s cubic-bezier(.32,.01,.6,.99) -.43s infinite alternate;
+}
+.fire-core{
+  opacity:.96;
+  mix-blend-mode:screen;
+  animation:fireCoreBreathe .51s cubic-bezier(.3,.02,.63,.98) -.11s infinite alternate;
+}
+.fire-hotbed{
+  opacity:.82;
+  animation:hotbedPulse .72s ease-in-out -.31s infinite alternate;
+}
+.fire-whitebed{
+  opacity:.72;
+  animation:hotbedPulse .49s ease-in-out -.08s infinite alternate-reverse;
+}
+.fire-wisps,.fire-embers{
+  position:absolute;
+  inset:0;
+  display:block;
+  pointer-events:none;
+}
+.fire-wisp{
+  position:absolute;
+  left:var(--wx);
+  bottom:73px;
+  width:var(--wsize);
+  height:calc(var(--wsize) * 1.9);
+  margin-left:calc(var(--wsize) * -.5);
+  border-radius:58% 42% 62% 38% / 76% 66% 34% 24%;
+  opacity:0;
+  transform-origin:50% 100%;
+  background:
+    linear-gradient(to top,
+      rgba(255,244,151,.92) 0%,
+      rgba(255,180,35,.9) 26%,
+      rgba(255,89,0,.78) 58%,
+      rgba(218,31,0,.18) 83%,
+      transparent 100%);
+  filter:blur(.45px) drop-shadow(0 0 4px rgba(255,87,0,.44));
+  animation:fireWispRise var(--wd) cubic-bezier(.18,.58,.28,1) var(--wdelay) infinite;
+}
+.fire-stage.extinguishing .fire-svg,
+.fire-stage.extinguishing .fire-wisps,
+.fire-stage.extinguishing .fire-embers{
+  opacity:.2;
+}
+@keyframes fireBodySway{
+  0%{transform:translate(-2px,2px) skewX(-1.8deg) scaleX(.985) scaleY(.985)}
+  37%{transform:translate(2px,-1px) skewX(1.1deg) scaleX(1.015) scaleY(1.025)}
+  72%{transform:translate(-1px,-4px) skewX(-.7deg) scaleX(.995) scaleY(1.045)}
+  100%{transform:translate(3px,-2px) skewX(1.9deg) scaleX(1.02) scaleY(1.01)}
+}
+@keyframes fireOuterBreathe{
+  0%{transform:translate(-3px,3px) scaleX(.94) scaleY(.96);opacity:.72}
+  29%{transform:translate(3px,-4px) scaleX(1.02) scaleY(1.055);opacity:.89}
+  61%{transform:translate(-1px,-1px) scaleX(.985) scaleY(1.015);opacity:.79}
+  100%{transform:translate(2px,-7px) scaleX(1.045) scaleY(1.08);opacity:.86}
+}
+@keyframes fireMidBreathe{
+  0%{transform:translate(2px,1px) scaleX(1.02) scaleY(.94)}
+  41%{transform:translate(-3px,-6px) scaleX(.93) scaleY(1.09)}
+  76%{transform:translate(2px,-2px) scaleX(1.04) scaleY(1.02)}
+  100%{transform:translate(-1px,-8px) scaleX(.97) scaleY(1.13)}
+}
+@keyframes fireCoreBreathe{
+  0%{transform:translate(-2px,2px) scaleX(.91) scaleY(.9);opacity:.78}
+  32%{transform:translate(2px,-3px) scaleX(1.05) scaleY(1.06);opacity:.98}
+  67%{transform:translate(-1px,-7px) scaleX(.96) scaleY(1.13);opacity:.9}
+  100%{transform:translate(2px,-4px) scaleX(1.02) scaleY(1.02);opacity:.96}
+}
+@keyframes hotbedPulse{
+  from{transform:scaleX(.9);opacity:.58}
+  to{transform:scaleX(1.08);opacity:.92}
+}
+@keyframes fireWispRise{
+  0%{
+    opacity:0;
+    transform:translate3d(-50%,8px,0) scale(.35,.55) rotate(-4deg);
+  }
+  10%{opacity:.68}
+  28%{
+    opacity:.82;
+    transform:translate3d(calc(-50% + var(--wdrift) * .18),-18px,0) scale(.78,1.05) rotate(5deg);
+  }
+  57%{
+    opacity:.48;
+    transform:translate3d(calc(-50% + var(--wdrift) * .58),calc(var(--wrise) * -.48),0) scale(.62,.88) rotate(-7deg);
+  }
+  100%{
+    opacity:0;
+    transform:translate3d(calc(-50% + var(--wdrift)),calc(var(--wrise) * -1),0) scale(.12,.38) rotate(9deg);
+  }
+}
