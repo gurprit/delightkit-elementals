@@ -624,55 +624,23 @@ nav{
 }
 
 
-/* Cursor-local cooling for the living fire */
-.fire-hover-cutout{
-  opacity:0;
-  transition:opacity 150ms ease;
+
+
+/* Cursor interaction: the local flame height physically collapses toward the bed. */
+.fire-slice-content{
+  --cool-scale:1;
+  transform-box:view-box;
+  transform-origin:120px 220px;
+  transform:scaleY(var(--cool-scale));
+  transition:transform 260ms cubic-bezier(.2,.72,.2,1);
+  will-change:transform;
 }
-.fire-stage.hover-cooling .fire-hover-cutout{
-  opacity:1;
+.fire-stage.hover-cooling .fire-slice-content{
+  transition-duration:72ms;
+  transition-timing-function:cubic-bezier(.2,.62,.26,1);
 }
 .fire-stage.hover-cooling .fire-aura{
-  opacity:.82;
-}
-.local-fire-smoke{
-  position:absolute;
-  z-index:46;
-  width:var(--local-smoke-size);
-  height:var(--local-smoke-size);
-  margin-left:calc(var(--local-smoke-size) * -.5);
-  margin-top:calc(var(--local-smoke-size) * -.5);
-  border-radius:50%;
-  pointer-events:none;
-  opacity:0;
-  background:
-    radial-gradient(circle at 42% 42%,
-      rgba(190,190,190,.56) 0 16%,
-      rgba(122,122,122,.34) 42%,
-      rgba(76,76,76,.12) 68%,
-      transparent 76%);
-  filter:blur(4px);
-  mix-blend-mode:screen;
-  animation:localSmokeLift 980ms cubic-bezier(.18,.56,.24,1) forwards;
-}
-:root[data-theme="light"] .local-fire-smoke{
-  mix-blend-mode:multiply;
-}
-@keyframes localSmokeLift{
-  0%{
-    opacity:0;
-    transform:translate3d(0,0,0) scale(.3);
-  }
-  14%{
-    opacity:.52;
-  }
-  58%{
-    opacity:.28;
-  }
-  100%{
-    opacity:0;
-    transform:translate3d(var(--local-smoke-drift),calc(var(--local-smoke-rise) * -1),0) scale(1.65);
-  }
+  opacity:.9;
 }
 @media (hover:hover) and (pointer:fine){
   .fire-stage{
@@ -680,10 +648,7 @@ nav{
   }
 }
 @media(prefers-reduced-motion:reduce){
-  .fire-hover-cutout{
+  .fire-slice-content{
     transition:none;
-  }
-  .local-fire-smoke{
-    display:none;
   }
 }
