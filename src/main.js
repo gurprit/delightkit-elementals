@@ -162,9 +162,21 @@ function fireMarkup() {
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
+
+          <radialGradient id="fireHoverGradient">
+            <stop offset="0%" stop-color="black"/>
+            <stop offset="46%" stop-color="black"/>
+            <stop offset="76%" stop-color="#777"/>
+            <stop offset="100%" stop-color="white"/>
+          </radialGradient>
+
+          <mask id="fireHoverMask" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="250">
+            <rect x="0" y="0" width="240" height="250" fill="white"/>
+            <circle class="fire-hover-cutout" cx="120" cy="130" r="34" fill="url(#fireHoverGradient)"/>
+          </mask>
         </defs>
 
-        <g class="fire-body">
+        <g class="fire-body" mask="url(#fireHoverMask)">
           <path
             class="fire-layer fire-outer"
             filter="url(#fireDistortOuter)"
@@ -310,6 +322,71 @@ function range(id,label,min,max,step,value,suffix) {
   return `<label><span>${label}<b>${shown}${suffix}</b></span><input data-control="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${value}"></label>`;
 }
 
+
+function spawnLocalSmoke(stage, event) {
+  const rect = stage.getBoundingClientRect();
+  const puff = document.createElement('i');
+  puff.className = 'local-fire-smoke';
+
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  puff.style.left = `${x}px`;
+  puff.style.top = `${y}px`;
+  puff.style.setProperty('--local-smoke-drift', `${rand(-18, 18)}px`);
+  puff.style.setProperty('--local-smoke-rise', `${rand(34, 62)}px`);
+  puff.style.setProperty('--local-smoke-size', `${rand(15, 27)}px`);
+
+  stage.appendChild(puff);
+  window.setTimeout(() => puff.remove(), 1050);
+}
+
+function bindFireHover() {
+  const stage = document.querySelector('.fire-stage');
+  const svg = stage?.querySelector('.fire-svg');
+  const cutout = stage?.querySelector('.fire-hover-cutout');
+  if (!stage || !svg || !cutout) return;
+
+  let lastSmoke = 0;
+
+  const coolAtPointer = event => {
+    if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+    if (stage.classList.contains('extinguishing')) return;
+
+    const rect = svg.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 240;
+    const y = ((event.clientY - rect.top) / rect.height) * 250;
+
+    const vertical = Math.max(0, Math.min(1, (y - 18) / 205));
+    const halfWidth = 18 + 88 * vertical;
+    const insideFlameZone =
+      y >= 15 &&
+      y <= 228 &&
+      Math.abs(x - 120) <= halfWidth;
+
+    if (!insideFlameZone) {
+      stage.classList.remove('hover-cooling');
+      return;
+    }
+
+    cutout.setAttribute('cx', x.toFixed(1));
+    cutout.setAttribute('cy', y.toFixed(1));
+    cutout.setAttribute('r', (24 + vertical * 18).toFixed(1));
+    stage.classList.add('hover-cooling');
+
+    const now = performance.now();
+    if (now - lastSmoke > 115) {
+      spawnLocalSmoke(stage, event);
+      lastSmoke = now;
+    }
+  };
+
+  stage.addEventListener('pointermove', coolAtPointer);
+  stage.addEventListener('pointerleave', () => {
+    stage.classList.remove('hover-cooling');
+  });
+}
+
 function bind() {
   document.querySelector('.theme-toggle').onclick = () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
@@ -318,6 +395,7 @@ function bind() {
   };
   document.querySelector('.primary').onclick = event => triggerCurrent(event.currentTarget);
   document.querySelector('.orb-stage').onclick = event => triggerCurrent(event.currentTarget);
+  bindFireHover();
   document.querySelectorAll('.effect').forEach(button => button.onclick = event => {
     state.effect = event.currentTarget.dataset.effect;
     const target = event.currentTarget;
