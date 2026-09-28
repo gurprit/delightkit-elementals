@@ -81,33 +81,145 @@ function burst(target, effect=state.effect, options={}) {
 
 
 function fireMarkup() {
-  const flames = Array.from({ length: 18 }, (_, index) => {
-    const centerBias = 1 - Math.min(1, Math.abs(index - 8.5) / 9);
-    const x = rand(8, 86);
-    const width = rand(22, 46);
-    const height = rand(58, 118) + centerBias * 34;
-    const duration = rand(460, 920);
-    const delay = -rand(0, 900);
-    const lean = rand(-11, 11);
-    const alpha = rand(.66, .98);
-    return `<i class="flame" style="--fx:${x}%;--fw:${width}px;--fh:${height}px;--fd:${duration}ms;--fdelay:${delay}ms;--lean:${lean}deg;--falpha:${alpha}"></i>`;
+  const seedA = Math.floor(rand(1, 999));
+  const seedB = Math.floor(rand(1000, 1999));
+  const seedC = Math.floor(rand(2000, 2999));
+
+  const wisps = Array.from({ length: 7 }, () => {
+    const x = rand(33, 67);
+    const size = rand(5, 12);
+    const drift = rand(-24, 24);
+    const rise = rand(70, 145);
+    const duration = rand(900, 1800);
+    const delay = -rand(0, 1800);
+    return `<i class="fire-wisp" style="--wx:${x}%;--wsize:${size}px;--wdrift:${drift}px;--wrise:${rise}px;--wd:${duration}ms;--wdelay:${delay}ms"></i>`;
   }).join('');
 
-  const embers = Array.from({ length: 12 }, () => {
-    const x = rand(22, 78);
-    const size = rand(2, 5);
-    const drift = rand(-32, 32);
-    const rise = rand(75, 150);
-    const duration = rand(1300, 2600);
-    const delay = -rand(0, 2600);
+  const embers = Array.from({ length: 9 }, () => {
+    const x = rand(30, 70);
+    const size = rand(1.5, 3.8);
+    const drift = rand(-30, 30);
+    const rise = rand(85, 165);
+    const duration = rand(1450, 2900);
+    const delay = -rand(0, 2900);
     return `<i class="fire-ember" style="--ex:${x}%;--esize:${size}px;--edrift:${drift}px;--erise:${rise}px;--ed:${duration}ms;--edelay:${delay}ms"></i>`;
   }).join('');
 
   return `
     <span class="fire-scene" aria-hidden="true">
       <span class="fire-aura"></span>
-      <span class="fire-bed"></span>
-      <span class="flames">${flames}</span>
+
+      <svg class="fire-svg" viewBox="0 0 240 250" role="presentation" focusable="false">
+        <defs>
+          <linearGradient id="fireOuter" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#fff2a3"/>
+            <stop offset="13%" stop-color="#ffd83d"/>
+            <stop offset="38%" stop-color="#ff8a00"/>
+            <stop offset="68%" stop-color="#ff3b00"/>
+            <stop offset="100%" stop-color="#7d0900" stop-opacity=".05"/>
+          </linearGradient>
+
+          <linearGradient id="fireMid" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#fffbd5"/>
+            <stop offset="18%" stop-color="#ffe96b"/>
+            <stop offset="48%" stop-color="#ffad14"/>
+            <stop offset="78%" stop-color="#ff5a00"/>
+            <stop offset="100%" stop-color="#c51d00" stop-opacity=".08"/>
+          </linearGradient>
+
+          <linearGradient id="fireCore" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#fffef0"/>
+            <stop offset="28%" stop-color="#fff6a0"/>
+            <stop offset="62%" stop-color="#ffd93f"/>
+            <stop offset="100%" stop-color="#ff8a00" stop-opacity=".1"/>
+          </linearGradient>
+
+          <filter id="fireDistortOuter" x="-35%" y="-35%" width="170%" height="185%">
+            <feTurbulence type="fractalNoise" baseFrequency=".011 .045" numOctaves="3" seed="${seedA}" result="noise">
+              <animate attributeName="baseFrequency" dur="1.9s" values=".011 .045;.018 .072;.008 .052;.015 .061;.011 .045" repeatCount="indefinite"/>
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="23" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+
+          <filter id="fireDistortMid" x="-40%" y="-40%" width="180%" height="195%">
+            <feTurbulence type="turbulence" baseFrequency=".014 .061" numOctaves="2" seed="${seedB}" result="noise">
+              <animate attributeName="baseFrequency" dur="1.35s" values=".014 .061;.023 .085;.010 .053;.019 .074;.014 .061" repeatCount="indefinite"/>
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="B"/>
+          </filter>
+
+          <filter id="fireDistortCore" x="-40%" y="-40%" width="180%" height="190%">
+            <feTurbulence type="fractalNoise" baseFrequency=".018 .075" numOctaves="2" seed="${seedC}" result="noise">
+              <animate attributeName="baseFrequency" dur=".95s" values=".018 .075;.028 .105;.013 .068;.023 .09;.018 .075" repeatCount="indefinite"/>
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="G" yChannelSelector="B"/>
+          </filter>
+
+          <filter id="fireGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="5" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g class="fire-body">
+          <path
+            class="fire-layer fire-outer"
+            filter="url(#fireDistortOuter)"
+            fill="url(#fireOuter)"
+            d="M31 211
+               C20 193 23 174 35 159
+               C28 145 31 128 47 115
+               C37 91 52 72 68 61
+               C68 86 76 101 88 110
+               C91 83 98 59 116 24
+               C130 58 124 84 136 108
+               C145 91 156 70 174 55
+               C176 83 190 99 194 119
+               C210 137 213 160 202 176
+               C211 191 205 207 191 217
+               C162 229 77 229 31 211 Z"
+          />
+
+          <path
+            class="fire-layer fire-mid"
+            filter="url(#fireDistortMid)"
+            fill="url(#fireMid)"
+            d="M51 214
+               C40 191 49 173 62 159
+               C56 143 64 128 79 116
+               C75 99 82 84 95 69
+               C99 91 106 108 116 118
+               C120 94 128 78 141 60
+               C145 88 156 104 164 120
+               C177 139 180 162 171 178
+               C181 197 170 213 157 220
+               C128 229 81 227 51 214 Z"
+          />
+
+          <path
+            class="fire-layer fire-core"
+            filter="url(#fireDistortCore)"
+            fill="url(#fireCore)"
+            d="M75 217
+               C66 202 70 184 84 171
+               C80 156 87 142 101 132
+               C98 115 104 100 116 85
+               C123 105 126 121 126 139
+               C135 124 143 111 151 100
+               C154 127 163 143 158 162
+               C169 181 158 205 144 216
+               C123 225 95 225 75 217 Z"
+          />
+
+          <ellipse class="fire-hotbed" cx="120" cy="218" rx="73" ry="13" filter="url(#fireGlow)" fill="#ff7b00"/>
+          <ellipse class="fire-whitebed" cx="120" cy="215" rx="43" ry="7" filter="url(#fireGlow)" fill="#fff4a7"/>
+        </g>
+      </svg>
+
+      <span class="fire-wisps">${wisps}</span>
       <span class="fire-embers">${embers}</span>
     </span>
   `;
