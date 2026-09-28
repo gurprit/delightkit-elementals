@@ -28,7 +28,18 @@ const EFFECTS = {
   },
 };
 
-const state = { effect: 'embers', amount: 24, intensity: 1, duration: 1 };
+const savedTheme = localStorage.getItem('delightkit-elementals:theme');
+const state = {
+  effect: 'embers',
+  amount: 24,
+  intensity: 1,
+  duration: 1,
+  theme: savedTheme === 'light' ? 'light' : 'dark',
+};
+
+function applyTheme() {
+  document.documentElement.dataset.theme = state.theme;
+}
 const rand = (min,max) => min + Math.random() * (max-min);
 const pick = values => values[Math.floor(Math.random() * values.length)];
 
@@ -69,11 +80,12 @@ function burst(target, effect=state.effect) {
 }
 
 function render() {
+  applyTheme();
   const e = EFFECTS[state.effect];
   document.documentElement.style.setProperty('--accent', e.accent);
   document.documentElement.style.setProperty('--wash', e.wash);
   document.querySelector('#app').innerHTML = `
-    <nav><div class="brand"><strong>DelightKit</strong><span>Elementals Lab</span></div><div class="nav-meta"><a href="https://github.com/gurprit/delightkit-elementals" target="_blank">GitHub</a><small>live physics playground</small></div></nav>
+    <nav><div class="brand"><strong>DelightKit</strong><span>Elementals Lab</span></div><div class="nav-meta"><small>live physics playground</small><button class="theme-toggle" type="button" aria-label="Switch to ${state.theme === 'dark' ? 'light' : 'dark'} mode"><span>${state.theme === 'dark' ? '☀' : '☾'}</span>${state.theme === 'dark' ? 'Light' : 'Dark'}</button><a href="https://github.com/gurprit/delightkit-elementals" target="_blank">GitHub</a></div></nav>
     <section class="hero">
       <div class="copy"><p class="eyebrow">TACTILE PARTICLE EFFECTS FOR THE WEB</p><h1>Give interfaces a little <em>weather.</em></h1><p class="lede">Tune the physics live. Fire each effect repeatedly. Keep adjusting until it feels less like CSS and more like a tiny physical event.</p><button class="trigger primary">Trigger ${e.label} ${e.glyph}</button></div>
       <div class="lab">
@@ -97,6 +109,11 @@ function range(id,label,min,max,step,value,suffix) {
 }
 
 function bind() {
+  document.querySelector('.theme-toggle').onclick = () => {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('delightkit-elementals:theme', state.theme);
+    render();
+  };
   document.querySelector('.primary').onclick = event => burst(event.currentTarget);
   document.querySelector('.orb-stage').onclick = event => burst(event.currentTarget);
   document.querySelectorAll('.effect').forEach(button => button.onclick = event => {
