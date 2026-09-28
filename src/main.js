@@ -3,7 +3,7 @@ import './style.css';
 const EFFECTS = {
   embers: {
     label: 'Embers', glyph: '🔥', accent: '#ff5b22', wash: 'rgba(255,91,34,.18)',
-    description: 'Hot sparks launch fast, pulse and continue rising.',
+    description: 'A living flame that flickers, sheds sparks and billows smoke when stamped out.',
     colors: ['#ff3d00','#ff6d00','#ff9100','#ffd166','#ffb000'],
   },
   frost: {
@@ -53,12 +53,12 @@ function particle(effect) {
   return {...shared,x:rand(-125,125),y:rand(-108,82),drift:rand(-26,26),rise:rand(82,155),size:rand(5,12),scale:rand(.45,1.18),endScale:rand(.04,.34),rotate:d*rand(90,420),base:rand(900,1750)};
 }
 
-function burst(target, effect=state.effect) {
+function burst(target, effect=state.effect, options={}) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const layer = document.createElement('span');
   layer.className = 'particle-layer';
   target.appendChild(layer);
-  const count = Math.max(1, Math.round(state.amount * state.intensity));
+  const count = options.count ?? Math.max(1, Math.round(state.amount * state.intensity));
   let longest = 0;
 
   for (let i=0;i<count;i++) {
@@ -79,6 +79,96 @@ function burst(target, effect=state.effect) {
   setTimeout(() => layer.remove(), longest + 250);
 }
 
+
+function fireMarkup() {
+  const flames = Array.from({ length: 18 }, (_, index) => {
+    const centerBias = 1 - Math.min(1, Math.abs(index - 8.5) / 9);
+    const x = rand(8, 86);
+    const width = rand(22, 46);
+    const height = rand(58, 118) + centerBias * 34;
+    const duration = rand(460, 920);
+    const delay = -rand(0, 900);
+    const lean = rand(-11, 11);
+    const alpha = rand(.66, .98);
+    return `<i class="flame" style="--fx:${x}%;--fw:${width}px;--fh:${height}px;--fd:${duration}ms;--fdelay:${delay}ms;--lean:${lean}deg;--falpha:${alpha}"></i>`;
+  }).join('');
+
+  const embers = Array.from({ length: 12 }, () => {
+    const x = rand(22, 78);
+    const size = rand(2, 5);
+    const drift = rand(-32, 32);
+    const rise = rand(75, 150);
+    const duration = rand(1300, 2600);
+    const delay = -rand(0, 2600);
+    return `<i class="fire-ember" style="--ex:${x}%;--esize:${size}px;--edrift:${drift}px;--erise:${rise}px;--ed:${duration}ms;--edelay:${delay}ms"></i>`;
+  }).join('');
+
+  return `
+    <span class="fire-scene" aria-hidden="true">
+      <span class="fire-aura"></span>
+      <span class="fire-bed"></span>
+      <span class="flames">${flames}</span>
+      <span class="fire-embers">${embers}</span>
+    </span>
+  `;
+}
+
+function smokeBurst(target) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = document.createElement('span');
+  layer.className = 'smoke-layer';
+  const count = Math.max(18, Math.round(24 * state.intensity));
+
+  for (let i = 0; i < count; i++) {
+    const puff = document.createElement('i');
+    puff.className = 'smoke-puff';
+    const size = rand(28, 74);
+    const x = rand(-68, 68);
+    const y = rand(-18, 22);
+    const drift = rand(-95, 95);
+    const rise = rand(105, 235);
+    const duration = rand(1500, 2800) * state.duration;
+    const delay = rand(0, 260);
+    const shade = Math.round(rand(74, 150));
+    Object.entries({
+      '--smoke-size': `${size}px`,
+      '--smoke-x': `${x}px`,
+      '--smoke-y': `${y}px`,
+      '--smoke-drift': `${drift}px`,
+      '--smoke-rise': `${rise}px`,
+      '--smoke-duration': `${duration}ms`,
+      '--smoke-delay': `${delay}ms`,
+      '--smoke-shade': `${shade}`,
+      '--smoke-scale': rand(1.8, 3.4),
+    }).forEach(([key, value]) => puff.style.setProperty(key, String(value)));
+    layer.appendChild(puff);
+  }
+
+  target.appendChild(layer);
+  setTimeout(() => layer.remove(), 3400 * state.duration);
+}
+
+function stampFire() {
+  const stage = document.querySelector('.orb-stage');
+  if (!stage || stage.classList.contains('extinguishing')) return;
+
+  stage.classList.add('extinguishing');
+  smokeBurst(stage);
+  burst(stage, 'embers', { count: Math.max(10, Math.round(14 * state.intensity)) });
+
+  window.setTimeout(() => {
+    stage.classList.remove('extinguishing');
+  }, 3300 * state.duration);
+}
+
+function triggerCurrent(target) {
+  if (state.effect === 'embers') {
+    stampFire();
+    return;
+  }
+  burst(target, state.effect);
+}
+
 function render() {
   applyTheme();
   const e = EFFECTS[state.effect];
@@ -87,9 +177,9 @@ function render() {
   document.querySelector('#app').innerHTML = `
     <nav><div class="brand"><strong>DelightKit</strong><span>Elementals Lab</span></div><div class="nav-meta"><small>live physics playground</small><button class="theme-toggle" type="button" aria-label="Switch to ${state.theme === 'dark' ? 'light' : 'dark'} mode"><span>${state.theme === 'dark' ? '☀' : '☾'}</span>${state.theme === 'dark' ? 'Light' : 'Dark'}</button><a href="https://github.com/gurprit/delightkit-elementals" target="_blank">GitHub</a></div></nav>
     <section class="hero">
-      <div class="copy"><p class="eyebrow">TACTILE PARTICLE EFFECTS FOR THE WEB</p><h1>Give interfaces a little <em>weather.</em></h1><p class="lede">Tune the physics live. Fire each effect repeatedly. Keep adjusting until it feels less like CSS and more like a tiny physical event.</p><button class="trigger primary">Trigger ${e.label} ${e.glyph}</button></div>
+      <div class="copy"><p class="eyebrow">TACTILE PARTICLE EFFECTS FOR THE WEB</p><h1>Give interfaces a little <em>weather.</em></h1><p class="lede">Tune the physics live. Fire each effect repeatedly. Keep adjusting until it feels less like CSS and more like a tiny physical event.</p><button class="trigger primary">${state.effect === 'embers' ? 'Stamp out the fire 🔥' : `Trigger ${e.label} ${e.glyph}`}</button></div>
       <div class="lab">
-        <button class="orb-stage"><span class="orb">${e.glyph}</span><small>tap the elemental</small></button>
+        <button class="orb-stage ${state.effect === 'embers' ? 'fire-stage' : ''}">${state.effect === 'embers' ? fireMarkup() : `<span class="orb">${e.glyph}</span>`}<small>${state.effect === 'embers' ? 'press to stamp it out' : 'tap the elemental'}</small></button>
         <div class="controls"><header><div><small>LIVE TUNING</small><strong>${e.label}</strong></div><button class="reset">Reset</button></header>
           ${range('amount','Particles',6,60,1,state.amount,'')}
           ${range('intensity','Intensity',.5,2,.05,state.intensity,'×')}
@@ -114,8 +204,8 @@ function bind() {
     localStorage.setItem('delightkit-elementals:theme', state.theme);
     render();
   };
-  document.querySelector('.primary').onclick = event => burst(event.currentTarget);
-  document.querySelector('.orb-stage').onclick = event => burst(event.currentTarget);
+  document.querySelector('.primary').onclick = event => triggerCurrent(event.currentTarget);
+  document.querySelector('.orb-stage').onclick = event => triggerCurrent(event.currentTarget);
   document.querySelectorAll('.effect').forEach(button => button.onclick = event => {
     state.effect = event.currentTarget.dataset.effect;
     const target = event.currentTarget;
