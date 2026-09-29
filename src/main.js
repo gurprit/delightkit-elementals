@@ -65,9 +65,9 @@ function layerPath(contours) {
   return (contours ?? []).map(smoothContour).filter(Boolean).join(' ');
 }
 
-function fireFrameMarkup(frame, index) {
+function fireFrameDefinition(frame, index) {
   const [outer, orange, yellow, core] = frame;
-  return `<g class="roto-frame ${index === 0 ? 'is-active' : ''}" data-frame="${index}">
+  return `<g id="fireFrame${index}">
     <path class="roto-outer" d="${layerPath(outer)}"></path>
     <path class="roto-orange" d="${layerPath(orange)}"></path>
     <path class="roto-yellow" d="${layerPath(yellow)}"></path>
@@ -123,6 +123,26 @@ function fireMarkup() {
     return `<i class="fire-ember" style="--ex:${x}%;--esize:${size}px;--edrift:${drift}px;--erise:${rise}px;--ed:${duration}ms;--edelay:${delay}ms"></i>`;
   }).join('');
 
+  const sliceCount = 19;
+  const sliceWidth = 240 / sliceCount;
+
+  const clips = Array.from({ length: sliceCount }, (_, index) => {
+    const x = index * sliceWidth - .7;
+    return `<clipPath id="rotoSlice${index}" clipPathUnits="userSpaceOnUse">
+      <rect x="${x.toFixed(2)}" y="0" width="${(sliceWidth + 1.4).toFixed(2)}" height="250"></rect>
+    </clipPath>`;
+  }).join('');
+
+  const slices = Array.from({ length: sliceCount }, (_, index) => {
+    const center = (index + .5) * sliceWidth;
+    return `<g clip-path="url(#rotoSlice${index})">
+      <g class="fire-deform-slice" data-center="${center.toFixed(2)}" style="--origin-x:${center.toFixed(2)}px">
+        <use class="fire-frame-use fire-frame-a" href="#fireFrame0"></use>
+        <use class="fire-frame-use fire-frame-b" href="#fireFrame1"></use>
+      </g>
+    </g>`;
+  }).join('');
+
   return `
     <span class="fire-scene" aria-hidden="true">
       <span class="fire-aura"></span>
@@ -136,17 +156,13 @@ function fireMarkup() {
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
-          <filter id="fireCoolingFeather" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2.4"/>
-          </filter>
-          <mask id="fireCoolingMask" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="250">
-            <rect x="0" y="0" width="240" height="250" fill="black"/>
-            <path class="fire-cooling-shape" d="M 0 0 H 240 V 250 H 0 Z" fill="white" filter="url(#fireCoolingFeather)"/>
-          </mask>
+
+          ${FIRE_FRAMES.map(fireFrameDefinition).join('')}
+          ${clips}
         </defs>
 
-        <g class="fire-rotoscope" mask="url(#fireCoolingMask)" filter="url(#fireRotoGlow)">
-          ${FIRE_FRAMES.map(fireFrameMarkup).join('')}
+        <g class="fire-rotoscope" filter="url(#fireRotoGlow)">
+          ${slices}
         </g>
       </svg>
 
@@ -246,15 +262,18 @@ function range(id,label,min,max,step,value,suffix) {
 function bindFireHover() {
   const stage = document.querySelector('.fire-stage');
   const svg = stage?.querySelector('.fire-svg');
-  const coolingShape = stage?.querySelector('.fire-cooling-shape');
-  if (!stage || !svg || !coolingShape) return;
+  const slices = [...(stage?.querySelectorAll('.fire-deform-slice') ?? [])];
+  if (!stage || !svg || !slices.length) return;
 
   const resetFlame = () => {
     stage.classList.remove('hover-cooling');
-    coolingShape.setAttribute('d', 'M 0 0 H 240 V 250 H 0 Z');
+    slices.forEach(slice => {
+      slice.style.setProperty('--cool-scale', '1');
+      slice.style.setProperty('--cool-skew', '0deg');
+    });
   };
 
-  const coolAtPointer = event => {
+  const deformAtPointer = event => {
     if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
     if (stage.classList.contains('extinguishing')) return;
 
@@ -262,11 +281,11 @@ function bindFireHover() {
     const x = ((event.clientX - rect.left) / rect.width) * 240;
     const y = ((event.clientY - rect.top) / rect.height) * 250;
 
-    const vertical = Math.max(0, Math.min(1, (y - 22) / 198));
-    const halfWidth = 22 + 72 * vertical;
+    const vertical = Math.max(0, Math.min(1, (y - 20) / 205));
+    const halfWidth = 20 + 90 * vertical;
     const insideFlameZone =
-      y >= 20 &&
-      y <= 223 &&
+      y >= 18 &&
+      y <= 225 &&
       Math.abs(x - 120) <= halfWidth;
 
     if (!insideFlameZone) {
@@ -274,47 +293,67 @@ function bindFireHover() {
       return;
     }
 
-    const top = Math.max(32, Math.min(214, y + 8));
-    const radius = 46 + vertical * 16;
-    const left = Math.max(0, x - radius);
-    const right = Math.min(240, x + radius);
-    const shoulder = radius * .55;
-
-    const d = [
-      'M 0 0',
-      `L ${left.toFixed(1)} 0`,
-      `C ${(x - shoulder).toFixed(1)} 0 ${(x - shoulder * .55).toFixed(1)} ${top.toFixed(1)} ${x.toFixed(1)} ${top.toFixed(1)}`,
-      `C ${(x + shoulder * .55).toFixed(1)} ${top.toFixed(1)} ${(x + shoulder).toFixed(1)} 0 ${right.toFixed(1)} 0`,
-      'L 240 0',
-      'L 240 250',
-      'L 0 250',
-      'Z',
-    ].join(' ');
-
-    coolingShape.setAttribute('d', d);
     stage.classList.add('hover-cooling');
+
+    const desiredTop = Math.max(38, Math.min(211, y + 7));
+    const desiredScale = Math.max(.07, Math.min(.94, (220 - desiredTop) / 196));
+    const radius = 58 + vertical * 10;
+
+    slices.forEach(slice => {
+      const center = Number(slice.dataset.center ?? 120);
+      const delta = center - x;
+      const distance = Math.abs(delta);
+      const normalized = Math.min(1, distance / radius);
+      const falloff = Math.pow(Math.cos(normalized * Math.PI * .5), 2);
+      const scale = 1 - (1 - desiredScale) * falloff;
+      const direction = delta === 0 ? 0 : Math.sign(delta);
+      const skew = direction * falloff * (1 - scale) * 13;
+
+      slice.style.setProperty('--cool-scale', scale.toFixed(3));
+      slice.style.setProperty('--cool-skew', `${skew.toFixed(2)}deg`);
+    });
   };
 
-  stage.addEventListener('pointermove', coolAtPointer);
+  stage.addEventListener('pointermove', deformAtPointer);
   stage.addEventListener('pointerleave', resetFlame);
 }
 
 function bindFireAnimation() {
   if (fireAnimationRaf) cancelAnimationFrame(fireAnimationRaf);
-  const frames = [...document.querySelectorAll('.roto-frame')];
-  if (!frames.length) return;
 
-  let index = 0;
-  let last = performance.now();
-  const frameDuration = 1000 / 9;
+  const usesA = [...document.querySelectorAll('.fire-frame-a')];
+  const usesB = [...document.querySelectorAll('.fire-frame-b')];
+  if (!usesA.length || !usesB.length) return;
+
+  const keyframeRate = 15;
+  const keyframeDuration = 1000 / keyframeRate;
+  const started = performance.now();
+  let loadedA = -1;
+  let loadedB = -1;
+
+  const setHref = (uses, index) => {
+    uses.forEach(use => use.setAttribute('href', `#fireFrame${index}`));
+  };
 
   const tick = now => {
-    if (now - last >= frameDuration) {
-      frames[index].classList.remove('is-active');
-      index = (index + 1) % frames.length;
-      frames[index].classList.add('is-active');
-      last = now;
+    const elapsed = now - started;
+    const position = elapsed / keyframeDuration;
+    const indexA = Math.floor(position) % FIRE_FRAMES.length;
+    const indexB = (indexA + 1) % FIRE_FRAMES.length;
+    const mix = position - Math.floor(position);
+
+    if (indexA !== loadedA) {
+      setHref(usesA, indexA);
+      loadedA = indexA;
     }
+    if (indexB !== loadedB) {
+      setHref(usesB, indexB);
+      loadedB = indexB;
+    }
+
+    usesA.forEach(use => { use.style.opacity = String(1 - mix); });
+    usesB.forEach(use => { use.style.opacity = String(mix); });
+
     fireAnimationRaf = requestAnimationFrame(tick);
   };
 
