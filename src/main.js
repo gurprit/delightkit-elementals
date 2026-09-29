@@ -103,14 +103,49 @@ function layerPath(contours) {
   return (contours ?? []).map(smoothContour).filter(Boolean).join(' ');
 }
 
+function fireFrameHorizontalOffset(frame) {
+  const points = (frame?.[0] ?? []).flat();
+  if (!points.length) return 0;
+
+  let weightedX = 0;
+  let totalWeight = 0;
+
+  points.forEach(([x, y]) => {
+    const weight = .35 + clamp(y / 220, 0, 1) * .65;
+    weightedX += x * weight;
+    totalWeight += weight;
+  });
+
+  const centre = weightedX / Math.max(1, totalWeight);
+  return clamp(120 - centre, -18, 18);
+}
+
 function fireFrameDefinition(frame, index) {
   const [outer, orange, yellow, core] = frame;
-  return `<g id="fireFrame${index}">
+  const offsetX = fireFrameHorizontalOffset(frame);
+
+  return `<g id="fireFrame${index}" transform="translate(${offsetX.toFixed(2)} 0)">
     <path class="roto-outer" d="${layerPath(outer)}"></path>
     <path class="roto-orange" d="${layerPath(orange)}"></path>
     <path class="roto-yellow" d="${layerPath(yellow)}"></path>
     <path class="roto-core" d="${layerPath(core)}"></path>
   </g>`;
+}
+
+function fireRingFrameMarkup(frame) {
+  const [outer, orange, yellow, core] = frame;
+  const offsetX = fireFrameHorizontalOffset(frame);
+
+  return `
+    <svg viewBox="0 0 240 250" aria-hidden="true">
+      <g transform="translate(${offsetX.toFixed(2)} 0)">
+        <path class="roto-outer" d="${layerPath(outer)}"></path>
+        <path class="roto-orange" d="${layerPath(orange)}"></path>
+        <path class="roto-yellow" d="${layerPath(yellow)}"></path>
+        <path class="roto-core" d="${layerPath(core)}"></path>
+      </g>
+    </svg>
+  `;
 }
 
 function particle(effect) {
@@ -459,6 +494,65 @@ function bindFrostInteraction() {
 }
 
 
+
+function fireRingBurst(stage) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const fireSvg = stage.querySelector('.fire-svg');
+  if (!fireSvg) return;
+
+  const stageRect = stage.getBoundingClientRect();
+  const fireRect = fireSvg.getBoundingClientRect();
+  const originX = fireRect.left - stageRect.left + fireRect.width * .5;
+  const originY = fireRect.top - stageRect.top + fireRect.height * .68;
+
+  const layer = document.createElement('span');
+  layer.className = 'fire-ring-burst-layer';
+  layer.style.left = `${originX}px`;
+  layer.style.top = `${originY}px`;
+
+  const tongueCount = 12;
+  for (let i = 0; i < tongueCount; i++) {
+    const tongue = document.createElement('i');
+    tongue.className = 'fire-ring-tongue';
+
+    const angle = i * (360 / tongueCount) + rand(-7, 7);
+    const frame = FIRE_FRAMES[(currentFireFrame + i * 2) % FIRE_FRAMES.length];
+    const radius = rand(72, 96);
+    const duration = rand(720, 980);
+    const delay = rand(0, 70);
+    const scale = rand(.82, 1.18);
+
+    tongue.style.setProperty('--ring-angle', `${angle.toFixed(2)}deg`);
+    tongue.style.setProperty('--ring-radius', `${radius.toFixed(1)}px`);
+    tongue.style.setProperty('--ring-duration', `${duration.toFixed(0)}ms`);
+    tongue.style.setProperty('--ring-delay', `${delay.toFixed(0)}ms`);
+    tongue.style.setProperty('--ring-scale', scale.toFixed(2));
+    tongue.innerHTML = fireRingFrameMarkup(frame);
+    layer.appendChild(tongue);
+  }
+
+  for (let i = 0; i < 16; i++) {
+    const puff = document.createElement('i');
+    puff.className = 'fire-ring-smoke-puff';
+
+    const angle = i * (360 / 16) + rand(-12, 12);
+    const radius = rand(76, 112);
+    const size = rand(20, 39);
+    const duration = rand(880, 1280);
+    const delay = rand(25, 125);
+
+    puff.style.setProperty('--ring-angle', `${angle.toFixed(2)}deg`);
+    puff.style.setProperty('--ring-radius', `${radius.toFixed(1)}px`);
+    puff.style.setProperty('--ring-smoke-size', `${size.toFixed(1)}px`);
+    puff.style.setProperty('--ring-duration', `${duration.toFixed(0)}ms`);
+    puff.style.setProperty('--ring-delay', `${delay.toFixed(0)}ms`);
+    layer.appendChild(puff);
+  }
+
+  stage.appendChild(layer);
+  window.setTimeout(() => layer.remove(), 1450);
+}
+
 function smokeBurst(target) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -526,6 +620,10 @@ function stampFire() {
   stage.classList.add('extinguishing');
   smokeBurst(stage);
   burst(stage, 'embers', { count: Math.max(10, Math.round(14 * state.intensity)) });
+
+  window.setTimeout(() => {
+    fireRingBurst(stage);
+  }, 105);
 
   window.setTimeout(() => {
     stage.classList.remove('extinguishing');
