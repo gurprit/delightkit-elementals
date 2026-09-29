@@ -1,4 +1,5 @@
 import './style.css';
+import { FIRE_FRAMES } from './fireFrames.js';
 
 const EFFECTS = {
   embers: {
@@ -42,6 +43,37 @@ function applyTheme() {
 }
 const rand = (min,max) => min + Math.random() * (max-min);
 const pick = values => values[Math.floor(Math.random() * values.length)];
+let fireAnimationRaf = 0;
+
+function smoothContour(points) {
+  if (!points?.length) return '';
+  if (points.length < 3) return '';
+  const first = points[0];
+  const second = points[1];
+  let d = `M ${((first[0] + second[0]) / 2).toFixed(1)} ${((first[1] + second[1]) / 2).toFixed(1)}`;
+  for (let i = 1; i <= points.length; i++) {
+    const point = points[i % points.length];
+    const next = points[(i + 1) % points.length];
+    const mx = (point[0] + next[0]) / 2;
+    const my = (point[1] + next[1]) / 2;
+    d += ` Q ${point[0]} ${point[1]} ${mx.toFixed(1)} ${my.toFixed(1)}`;
+  }
+  return d + ' Z';
+}
+
+function layerPath(contours) {
+  return (contours ?? []).map(smoothContour).filter(Boolean).join(' ');
+}
+
+function fireFrameMarkup(frame, index) {
+  const [outer, orange, yellow, core] = frame;
+  return `<g class="roto-frame ${index === 0 ? 'is-active' : ''}" data-frame="${index}">
+    <path class="roto-outer" d="${layerPath(outer)}"></path>
+    <path class="roto-orange" d="${layerPath(orange)}"></path>
+    <path class="roto-yellow" d="${layerPath(yellow)}"></path>
+    <path class="roto-core" d="${layerPath(core)}"></path>
+  </g>`;
+}
 
 function particle(effect) {
   const d = Math.random() > .5 ? 1 : -1;
@@ -81,44 +113,12 @@ function burst(target, effect=state.effect, options={}) {
 
 
 function fireMarkup() {
-  const seedA = Math.floor(rand(1, 999));
-  const seedB = Math.floor(rand(1000, 1999));
-  const seedC = Math.floor(rand(2000, 2999));
-  const sliceCount = 15;
-  const sliceWidth = 240 / sliceCount;
-
-  const clips = Array.from({ length: sliceCount }, (_, index) => {
-    const x = index * sliceWidth - 1;
-    return `<clipPath id="fireSlice${index}" clipPathUnits="userSpaceOnUse">
-      <rect x="${x}" y="0" width="${sliceWidth + 2}" height="250" />
-    </clipPath>`;
-  }).join('');
-
-  const slices = Array.from({ length: sliceCount }, (_, index) => {
-    const center = (index + .5) * sliceWidth;
-    return `<g class="fire-slice" data-slice="${index}" data-center="${center.toFixed(2)}" clip-path="url(#fireSlice${index})">
-      <g class="fire-slice-content">
-        <use href="#fireVisual"></use>
-      </g>
-    </g>`;
-  }).join('');
-
-  const wisps = Array.from({ length: 7 }, () => {
-    const x = rand(33, 67);
-    const size = rand(5, 12);
-    const drift = rand(-24, 24);
-    const rise = rand(70, 145);
-    const duration = rand(900, 1800);
-    const delay = -rand(0, 1800);
-    return `<i class="fire-wisp" style="--wx:${x}%;--wsize:${size}px;--wdrift:${drift}px;--wrise:${rise}px;--wd:${duration}ms;--wdelay:${delay}ms"></i>`;
-  }).join('');
-
-  const embers = Array.from({ length: 9 }, () => {
+  const embers = Array.from({ length: 7 }, () => {
     const x = rand(30, 70);
-    const size = rand(1.5, 3.8);
-    const drift = rand(-30, 30);
-    const rise = rand(85, 165);
-    const duration = rand(1450, 2900);
+    const size = rand(1.4, 3.4);
+    const drift = rand(-28, 28);
+    const rise = rand(78, 150);
+    const duration = rand(1500, 2900);
     const delay = -rand(0, 2900);
     return `<i class="fire-ember" style="--ex:${x}%;--esize:${size}px;--edrift:${drift}px;--erise:${rise}px;--ed:${duration}ms;--edelay:${delay}ms"></i>`;
   }).join('');
@@ -129,121 +129,27 @@ function fireMarkup() {
 
       <svg class="fire-svg" viewBox="0 0 240 250" role="presentation" focusable="false">
         <defs>
-          <linearGradient id="fireOuter" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stop-color="#fff2a3"/>
-            <stop offset="13%" stop-color="#ffd83d"/>
-            <stop offset="38%" stop-color="#ff8a00"/>
-            <stop offset="68%" stop-color="#ff3b00"/>
-            <stop offset="100%" stop-color="#7d0900" stop-opacity=".05"/>
-          </linearGradient>
-
-          <linearGradient id="fireMid" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stop-color="#fffbd5"/>
-            <stop offset="18%" stop-color="#ffe96b"/>
-            <stop offset="48%" stop-color="#ffad14"/>
-            <stop offset="78%" stop-color="#ff5a00"/>
-            <stop offset="100%" stop-color="#c51d00" stop-opacity=".08"/>
-          </linearGradient>
-
-          <linearGradient id="fireCore" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stop-color="#fffef0"/>
-            <stop offset="28%" stop-color="#fff6a0"/>
-            <stop offset="62%" stop-color="#ffd93f"/>
-            <stop offset="100%" stop-color="#ff8a00" stop-opacity=".1"/>
-          </linearGradient>
-
-          <filter id="fireDistortOuter" x="-35%" y="-35%" width="170%" height="185%">
-            <feTurbulence type="fractalNoise" baseFrequency=".011 .045" numOctaves="3" seed="${seedA}" result="noise">
-              <animate attributeName="baseFrequency" dur="1.9s" values=".011 .045;.018 .072;.008 .052;.015 .061;.011 .045" repeatCount="indefinite"/>
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="23" xChannelSelector="R" yChannelSelector="G"/>
-          </filter>
-
-          <filter id="fireDistortMid" x="-40%" y="-40%" width="180%" height="195%">
-            <feTurbulence type="turbulence" baseFrequency=".014 .061" numOctaves="2" seed="${seedB}" result="noise">
-              <animate attributeName="baseFrequency" dur="1.35s" values=".014 .061;.023 .085;.010 .053;.019 .074;.014 .061" repeatCount="indefinite"/>
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="B"/>
-          </filter>
-
-          <filter id="fireDistortCore" x="-40%" y="-40%" width="180%" height="190%">
-            <feTurbulence type="fractalNoise" baseFrequency=".018 .075" numOctaves="2" seed="${seedC}" result="noise">
-              <animate attributeName="baseFrequency" dur=".95s" values=".018 .075;.028 .105;.013 .068;.023 .09;.018 .075" repeatCount="indefinite"/>
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="G" yChannelSelector="B"/>
-          </filter>
-
-          <filter id="fireGlow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="5" result="blur"/>
+          <filter id="fireRotoGlow" x="-50%" y="-50%" width="200%" height="220%">
+            <feGaussianBlur stdDeviation="4.5" result="blur"/>
             <feMerge>
               <feMergeNode in="blur"/>
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
-
-          ${clips}
-
-          <g id="fireVisual">
-            <path
-              class="fire-layer fire-outer"
-              filter="url(#fireDistortOuter)"
-              fill="url(#fireOuter)"
-              d="M31 211
-                 C20 193 23 174 35 159
-                 C28 145 31 128 47 115
-                 C37 91 52 72 68 61
-                 C68 86 76 101 88 110
-                 C91 83 98 59 116 24
-                 C130 58 124 84 136 108
-                 C145 91 156 70 174 55
-                 C176 83 190 99 194 119
-                 C210 137 213 160 202 176
-                 C211 191 205 207 191 217
-                 C162 229 77 229 31 211 Z"
-            />
-
-            <path
-              class="fire-layer fire-mid"
-              filter="url(#fireDistortMid)"
-              fill="url(#fireMid)"
-              d="M51 214
-                 C40 191 49 173 62 159
-                 C56 143 64 128 79 116
-                 C75 99 82 84 95 69
-                 C99 91 106 108 116 118
-                 C120 94 128 78 141 60
-                 C145 88 156 104 164 120
-                 C177 139 180 162 171 178
-                 C181 197 170 213 157 220
-                 C128 229 81 227 51 214 Z"
-            />
-
-            <path
-              class="fire-layer fire-core"
-              filter="url(#fireDistortCore)"
-              fill="url(#fireCore)"
-              d="M75 217
-                 C66 202 70 184 84 171
-                 C80 156 87 142 101 132
-                 C98 115 104 100 116 85
-                 C123 105 126 121 126 139
-                 C135 124 143 111 151 100
-                 C154 127 163 143 158 162
-                 C169 181 158 205 144 216
-                 C123 225 95 225 75 217 Z"
-            />
-
-            <ellipse class="fire-hotbed" cx="120" cy="218" rx="73" ry="13" filter="url(#fireGlow)" fill="#ff7b00"/>
-            <ellipse class="fire-whitebed" cx="120" cy="215" rx="43" ry="7" filter="url(#fireGlow)" fill="#fff4a7"/>
-          </g>
+          <filter id="fireCoolingFeather" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.4"/>
+          </filter>
+          <mask id="fireCoolingMask" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="250">
+            <rect x="0" y="0" width="240" height="250" fill="black"/>
+            <path class="fire-cooling-shape" d="M 0 0 H 240 V 250 H 0 Z" fill="white" filter="url(#fireCoolingFeather)"/>
+          </mask>
         </defs>
 
-        <g class="fire-body">
-          ${slices}
+        <g class="fire-rotoscope" mask="url(#fireCoolingMask)" filter="url(#fireRotoGlow)">
+          ${FIRE_FRAMES.map(fireFrameMarkup).join('')}
         </g>
       </svg>
 
-      <span class="fire-wisps">${wisps}</span>
       <span class="fire-embers">${embers}</span>
     </span>
   `;
@@ -306,6 +212,8 @@ function triggerCurrent(target) {
 }
 
 function render() {
+  if (fireAnimationRaf) cancelAnimationFrame(fireAnimationRaf);
+  fireAnimationRaf = 0;
   applyTheme();
   const e = EFFECTS[state.effect];
   document.documentElement.style.setProperty('--accent', e.accent);
@@ -338,14 +246,12 @@ function range(id,label,min,max,step,value,suffix) {
 function bindFireHover() {
   const stage = document.querySelector('.fire-stage');
   const svg = stage?.querySelector('.fire-svg');
-  const slices = [...(stage?.querySelectorAll('.fire-slice-content') ?? [])];
-  if (!stage || !svg || !slices.length) return;
+  const coolingShape = stage?.querySelector('.fire-cooling-shape');
+  if (!stage || !svg || !coolingShape) return;
 
-  const resetSlices = () => {
+  const resetFlame = () => {
     stage.classList.remove('hover-cooling');
-    slices.forEach(slice => {
-      slice.style.setProperty('--cool-scale', '1');
-    });
+    coolingShape.setAttribute('d', 'M 0 0 H 240 V 250 H 0 Z');
   };
 
   const coolAtPointer = event => {
@@ -356,36 +262,63 @@ function bindFireHover() {
     const x = ((event.clientX - rect.left) / rect.width) * 240;
     const y = ((event.clientY - rect.top) / rect.height) * 250;
 
-    const vertical = Math.max(0, Math.min(1, (y - 20) / 205));
-    const halfWidth = 20 + 88 * vertical;
+    const vertical = Math.max(0, Math.min(1, (y - 22) / 198));
+    const halfWidth = 22 + 72 * vertical;
     const insideFlameZone =
       y >= 20 &&
-      y <= 228 &&
+      y <= 223 &&
       Math.abs(x - 120) <= halfWidth;
 
     if (!insideFlameZone) {
-      resetSlices();
+      resetFlame();
       return;
     }
 
+    const top = Math.max(32, Math.min(214, y + 8));
+    const radius = 46 + vertical * 16;
+    const left = Math.max(0, x - radius);
+    const right = Math.min(240, x + radius);
+    const shoulder = radius * .55;
+
+    const d = [
+      'M 0 0',
+      `L ${left.toFixed(1)} 0`,
+      `C ${(x - shoulder).toFixed(1)} 0 ${(x - shoulder * .55).toFixed(1)} ${top.toFixed(1)} ${x.toFixed(1)} ${top.toFixed(1)}`,
+      `C ${(x + shoulder * .55).toFixed(1)} ${top.toFixed(1)} ${(x + shoulder).toFixed(1)} 0 ${right.toFixed(1)} 0`,
+      'L 240 0',
+      'L 240 250',
+      'L 0 250',
+      'Z',
+    ].join(' ');
+
+    coolingShape.setAttribute('d', d);
     stage.classList.add('hover-cooling');
-
-    const desiredTop = Math.max(42, Math.min(207, y + 9));
-    const desiredScale = Math.max(.08, Math.min(.9, (220 - desiredTop) / 196));
-    const radius = 54;
-
-    slices.forEach(slice => {
-      const center = Number(slice.parentElement?.dataset.center ?? 120);
-      const distance = Math.abs(center - x);
-      const normalized = Math.min(1, distance / radius);
-      const falloff = Math.pow(Math.cos(normalized * Math.PI * .5), 2);
-      const scale = 1 - (1 - desiredScale) * falloff;
-      slice.style.setProperty('--cool-scale', scale.toFixed(3));
-    });
   };
 
   stage.addEventListener('pointermove', coolAtPointer);
-  stage.addEventListener('pointerleave', resetSlices);
+  stage.addEventListener('pointerleave', resetFlame);
+}
+
+function bindFireAnimation() {
+  if (fireAnimationRaf) cancelAnimationFrame(fireAnimationRaf);
+  const frames = [...document.querySelectorAll('.roto-frame')];
+  if (!frames.length) return;
+
+  let index = 0;
+  let last = performance.now();
+  const frameDuration = 1000 / 9;
+
+  const tick = now => {
+    if (now - last >= frameDuration) {
+      frames[index].classList.remove('is-active');
+      index = (index + 1) % frames.length;
+      frames[index].classList.add('is-active');
+      last = now;
+    }
+    fireAnimationRaf = requestAnimationFrame(tick);
+  };
+
+  fireAnimationRaf = requestAnimationFrame(tick);
 }
 
 function bind() {
@@ -397,6 +330,7 @@ function bind() {
   document.querySelector('.primary').onclick = event => triggerCurrent(event.currentTarget);
   document.querySelector('.orb-stage').onclick = event => triggerCurrent(event.currentTarget);
   bindFireHover();
+  bindFireAnimation();
   document.querySelectorAll('.effect').forEach(button => button.onclick = event => {
     state.effect = event.currentTarget.dataset.effect;
     const target = event.currentTarget;
