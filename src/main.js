@@ -219,20 +219,59 @@ function frostMarkup() {
     return `<i class="ice-bubble" style="--bx:${x}%;--by:${y}%;--bs:${size}px;--bo:${opacity}"></i>`;
   }).join('');
 
+  const tails = Array.from({ length: 4 }, (_, i) => {
+    const delay = rand(0, 480);
+    const duration = rand(900, 1350);
+    const rotate = i * 90 + rand(-14, 14);
+    return `
+      <span class="electric-tail" style="--etail-delay:${delay}ms;--etail-duration:${duration}ms;--etail-rotate:${rotate}deg">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <path d="M18 64 C34 29, 56 26, 67 57 S91 92, 104 52"></path>
+        </svg>
+      </span>
+    `;
+  }).join('');
+
+  const smoke = Array.from({ length: 9 }, () => {
+    const x = rand(16, 84);
+    const y = rand(18, 82);
+    const size = rand(22, 46);
+    const driftX = rand(-24, 24);
+    const driftY = rand(18, 46);
+    const delay = rand(0, 440);
+    const dur = rand(1200, 1900);
+    return `<i class="purple-smoke" style="--psx:${x}%;--psy:${y}%;--ps:${size}px;--psdx:${driftX}px;--psdy:${driftY}px;--psdelay:${delay}ms;--psdur:${dur}ms"></i>`;
+  }).join('');
+
   return `
     <span class="frost-scene" aria-hidden="true">
       <span class="ice-shadow"></span>
+
+      <span class="frost-energy-layer">
+        ${tails}
+      </span>
+
+      <span class="purple-smoke-layer">
+        ${smoke}
+      </span>
+
       <span class="ice-sphere">
         <span class="ice-depth"></span>
         <span class="ice-gloss"></span>
         <span class="ice-bubbles">${bubbles}</span>
         <span class="ice-rim"></span>
       </span>
+
       <span class="frost-impact-layer"></span>
       <span class="frost-shard-layer"></span>
+
       <span class="water-reform">
-        <span class="water-drop"></span>
-        <span class="freeze-shell"></span>
+        <span class="water-drop">
+          <span class="water-inner-gloss"></span>
+          <span class="freeze-rim"></span>
+          <span class="freeze-crystal-web"></span>
+          <span class="freeze-fog"></span>
+        </span>
       </span>
     </span>
   `;
@@ -376,7 +415,7 @@ function shatterFrost(event) {
 
   window.setTimeout(() => {
     stage.classList.add('frost-freezing');
-  }, 1180);
+  }, 1390);
 
   window.setTimeout(() => {
     const impact = stage.querySelector('.frost-impact-layer');
@@ -384,20 +423,38 @@ function shatterFrost(event) {
     if (impact) impact.innerHTML = '';
     if (shards) shards.innerHTML = '';
     stage.classList.remove('frost-busy','frost-shattering','frost-water-arriving','frost-freezing');
-  }, 2300);
+  }, 2580);
 }
 
 function bindFrostInteraction() {
   const stage = document.querySelector('.frost-stage');
-  if (!stage) return;
+  const sphere = stage?.querySelector('.ice-sphere');
+  if (!stage || !sphere) return;
+
+  const updatePointerBias = event => {
+    const rect = sphere.getBoundingClientRect();
+    const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+
+    stage.style.setProperty('--frost-pointer-x', (x - .5).toFixed(3));
+    stage.style.setProperty('--frost-pointer-y', (y - .5).toFixed(3));
+  };
 
   stage.addEventListener('pointerenter', event => {
     if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
     if (!stage.classList.contains('frost-busy')) stage.classList.add('frost-agitated');
+    updatePointerBias(event);
+  });
+
+  stage.addEventListener('pointermove', event => {
+    if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+    if (!stage.classList.contains('frost-busy')) updatePointerBias(event);
   });
 
   stage.addEventListener('pointerleave', () => {
     stage.classList.remove('frost-agitated');
+    stage.style.setProperty('--frost-pointer-x', '0');
+    stage.style.setProperty('--frost-pointer-y', '0');
   });
 }
 
