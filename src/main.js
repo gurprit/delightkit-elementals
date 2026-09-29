@@ -44,6 +44,44 @@ function applyTheme() {
 const rand = (min,max) => min + Math.random() * (max-min);
 const pick = values => values[Math.floor(Math.random() * values.length)];
 let fireAnimationRaf = 0;
+let currentFireFrame = 0;
+
+const hoverState = {
+  active: false,
+  x: 120,
+  y: 120,
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const lerp = (from, to, t) => from + (to - from) * t;
+
+function fireTopAtX(frame, x) {
+  const outerContours = frame?.[0] ?? [];
+  let top = Infinity;
+
+  for (const contour of outerContours) {
+    if (!contour?.length) continue;
+
+    for (let i = 0; i < contour.length; i++) {
+      const a = contour[i];
+      const b = contour[(i + 1) % contour.length];
+      const minX = Math.min(a[0], b[0]);
+      const maxX = Math.max(a[0], b[0]);
+
+      if (x < minX || x > maxX || a[0] === b[0]) continue;
+
+      const t = (x - a[0]) / (b[0] - a[0]);
+      const y = a[1] + (b[1] - a[1]) * t;
+      top = Math.min(top, y);
+    }
+
+    for (const point of contour) {
+      if (Math.abs(point[0] - x) <= 7) top = Math.min(top, point[1]);
+    }
+  }
+
+  return Number.isFinite(top) ? top : null;
+}
 
 function smoothContour(points) {
   if (!points?.length) return '';
@@ -173,37 +211,62 @@ function fireMarkup() {
 
 function smokeBurst(target) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const slices = [...target.querySelectorAll('.fire-deform-slice')];
+  if (!slices.length) return;
+
   const layer = document.createElement('span');
   layer.className = 'smoke-layer';
-  const count = Math.max(18, Math.round(24 * state.intensity));
 
-  for (let i = 0; i < count; i++) {
-    const puff = document.createElement('i');
-    puff.className = 'smoke-puff';
-    const size = rand(28, 74);
-    const x = rand(-68, 68);
-    const y = rand(-18, 22);
-    const drift = rand(-95, 95);
-    const rise = rand(105, 235);
-    const duration = rand(1500, 2800) * state.duration;
-    const delay = rand(0, 260);
-    const shade = Math.round(rand(74, 150));
-    Object.entries({
-      '--smoke-size': `${size}px`,
-      '--smoke-x': `${x}px`,
-      '--smoke-y': `${y}px`,
-      '--smoke-drift': `${drift}px`,
-      '--smoke-rise': `${rise}px`,
-      '--smoke-duration': `${duration}ms`,
-      '--smoke-delay': `${delay}ms`,
-      '--smoke-shade': `${shade}`,
-      '--smoke-scale': rand(1.8, 3.4),
-    }).forEach(([key, value]) => puff.style.setProperty(key, String(value)));
-    layer.appendChild(puff);
-  }
+  const frame = FIRE_FRAMES[currentFireFrame] ?? FIRE_FRAMES[0];
+  let longest = 0;
+
+  slices.forEach((slice, index) => {
+    const center = Number(slice.dataset.center ?? 120);
+    const tracedTop = fireTopAtX(frame, center);
+    if (tracedTop == null || tracedTop > 216) return;
+
+    const currentScale = Number(slice.dataset.currentScale || 1);
+    const transformedTop = 220 - (220 - tracedTop) * currentScale;
+
+    const edgeRatio = Math.abs(index / (slices.length - 1) - 0.5) * 2;
+    const centerBias = 1 - edgeRatio;
+    const flameHeight = clamp((220 - transformedTop) / 180, 0, 1);
+    const strength = clamp(.28 + centerBias * .48 + flameHeight * .42, .2, 1);
+    const puffCount = 1 + Math.round(strength * 2);
+
+    for (let i = 0; i < puffCount; i++) {
+      const puff = document.createElement('i');
+      puff.className = 'smoke-wisp';
+
+      const width = rand(17, 31) * (.75 + strength * .9);
+      const height = rand(22, 44) * (.8 + strength * .9);
+      const rise = rand(82, 160) * (.85 + strength * .42);
+      const driftX = rand(-25, 25) + (center - 120) * .045;
+      const duration = rand(1250, 2250);
+      const delay = rand(0, 165);
+      const scale = rand(1.8, 3.25);
+      const warmth = clamp(.2 + strength * .62 - i * .12, .05, .85);
+
+      longest = Math.max(longest, duration + delay);
+
+      puff.style.left = `${center + rand(-3.5, 3.5)}px`;
+      puff.style.top = `${transformedTop + rand(-5, 7)}px`;
+      puff.style.setProperty('--w', `${width.toFixed(1)}px`);
+      puff.style.setProperty('--h', `${height.toFixed(1)}px`);
+      puff.style.setProperty('--rise', `${rise.toFixed(1)}px`);
+      puff.style.setProperty('--drift-x', `${driftX.toFixed(1)}px`);
+      puff.style.setProperty('--dur', `${duration.toFixed(0)}ms`);
+      puff.style.setProperty('--delay', `${delay.toFixed(0)}ms`);
+      puff.style.setProperty('--scale', scale.toFixed(2));
+      puff.style.setProperty('--warmth', warmth.toFixed(2));
+
+      layer.appendChild(puff);
+    }
+  });
 
   target.appendChild(layer);
-  setTimeout(() => layer.remove(), 3400 * state.duration);
+  window.setTimeout(() => layer.remove(), longest + 320);
 }
 
 function stampFire() {
@@ -262,15 +325,11 @@ function range(id,label,min,max,step,value,suffix) {
 function bindFireHover() {
   const stage = document.querySelector('.fire-stage');
   const svg = stage?.querySelector('.fire-svg');
-  const slices = [...(stage?.querySelectorAll('.fire-deform-slice') ?? [])];
-  if (!stage || !svg || !slices.length) return;
+  if (!stage || !svg) return;
 
   const resetFlame = () => {
+    hoverState.active = false;
     stage.classList.remove('hover-cooling');
-    slices.forEach(slice => {
-      slice.style.setProperty('--cool-scale', '1');
-      slice.style.setProperty('--cool-skew', '0deg');
-    });
   };
 
   const deformAtPointer = event => {
@@ -281,8 +340,9 @@ function bindFireHover() {
     const x = ((event.clientX - rect.left) / rect.width) * 240;
     const y = ((event.clientY - rect.top) / rect.height) * 250;
 
-    const vertical = Math.max(0, Math.min(1, (y - 20) / 205));
+    const vertical = clamp((y - 20) / 205, 0, 1);
     const halfWidth = 20 + 90 * vertical;
+
     const insideFlameZone =
       y >= 18 &&
       y <= 225 &&
@@ -293,25 +353,10 @@ function bindFireHover() {
       return;
     }
 
+    hoverState.active = true;
+    hoverState.x = x;
+    hoverState.y = y;
     stage.classList.add('hover-cooling');
-
-    const desiredTop = Math.max(38, Math.min(211, y + 7));
-    const desiredScale = Math.max(.07, Math.min(.94, (220 - desiredTop) / 196));
-    const radius = 58 + vertical * 10;
-
-    slices.forEach(slice => {
-      const center = Number(slice.dataset.center ?? 120);
-      const delta = center - x;
-      const distance = Math.abs(delta);
-      const normalized = Math.min(1, distance / radius);
-      const falloff = Math.pow(Math.cos(normalized * Math.PI * .5), 2);
-      const scale = 1 - (1 - desiredScale) * falloff;
-      const direction = delta === 0 ? 0 : Math.sign(delta);
-      const skew = direction * falloff * (1 - scale) * 13;
-
-      slice.style.setProperty('--cool-scale', scale.toFixed(3));
-      slice.style.setProperty('--cool-skew', `${skew.toFixed(2)}deg`);
-    });
   };
 
   stage.addEventListener('pointermove', deformAtPointer);
@@ -323,9 +368,11 @@ function bindFireAnimation() {
 
   const usesA = [...document.querySelectorAll('.fire-frame-a')];
   const usesB = [...document.querySelectorAll('.fire-frame-b')];
-  if (!usesA.length || !usesB.length) return;
+  const slices = [...document.querySelectorAll('.fire-deform-slice')];
 
-  const keyframeRate = 15;
+  if (!usesA.length || !usesB.length || !slices.length) return;
+
+  const keyframeRate = 24;
   const keyframeDuration = 1000 / keyframeRate;
   const started = performance.now();
   let loadedA = -1;
@@ -342,6 +389,8 @@ function bindFireAnimation() {
     const indexB = (indexA + 1) % FIRE_FRAMES.length;
     const mix = position - Math.floor(position);
 
+    currentFireFrame = indexA;
+
     if (indexA !== loadedA) {
       setHref(usesA, indexA);
       loadedA = indexA;
@@ -353,6 +402,58 @@ function bindFireAnimation() {
 
     usesA.forEach(use => { use.style.opacity = String(1 - mix); });
     usesB.forEach(use => { use.style.opacity = String(mix); });
+
+    slices.forEach(slice => {
+      const center = Number(slice.dataset.center ?? 120);
+
+      let targetScale = 1;
+      let targetSkew = 0;
+      let targetScaleX = 1;
+      let influence = 0;
+
+      if (hoverState.active) {
+        const dx = center - hoverState.x;
+        const distance = Math.abs(dx);
+        const vertical = clamp((hoverState.y - 20) / 205, 0, 1);
+        const desiredTop = clamp(hoverState.y + 7, 38, 211);
+        const desiredScale = clamp((220 - desiredTop) / 196, .07, .94);
+        const radius = 58 + vertical * 12;
+        const normalized = Math.min(1, distance / radius);
+
+        influence = Math.pow(Math.cos(normalized * Math.PI * .5), 2);
+        targetScale = 1 - (1 - desiredScale) * influence;
+
+        const direction = dx === 0 ? 0 : Math.sign(dx);
+        targetSkew = direction * influence * (1 - targetScale) * 11.5;
+        targetScaleX = 1 + influence * (1 - targetScale) * .12;
+      }
+
+      const currentScale = Number(slice.dataset.currentScale || 1);
+      const currentSkew = Number(slice.dataset.currentSkew || 0);
+      const currentScaleX = Number(slice.dataset.currentScaleX || 1);
+
+      const response = hoverState.active ? .28 : .14;
+      const nextScale = lerp(currentScale, targetScale, response);
+      const nextSkew = lerp(currentSkew, targetSkew, hoverState.active ? .24 : .14);
+      const nextScaleX = lerp(currentScaleX, targetScaleX, hoverState.active ? .24 : .14);
+
+      slice.dataset.currentScale = nextScale.toFixed(4);
+      slice.dataset.currentSkew = nextSkew.toFixed(4);
+      slice.dataset.currentScaleX = nextScaleX.toFixed(4);
+
+      const wobbleStrength = influence * (1 - nextScale);
+      const wobble =
+        Math.sin(now * .017 + center * .11) * wobbleStrength * 2.7 +
+        Math.sin(now * .031 + center * .047) * wobbleStrength * .9;
+      const shiftX = Math.sin(now * .007 + center * .08) * wobbleStrength * 3.4;
+      const shiftY = Math.cos(now * .009 + center * .05) * wobbleStrength * 2.2;
+
+      slice.style.setProperty('--cool-scale', nextScale.toFixed(4));
+      slice.style.setProperty('--cool-skew', `${(nextSkew + wobble).toFixed(2)}deg`);
+      slice.style.setProperty('--cool-scale-x', nextScaleX.toFixed(4));
+      slice.style.setProperty('--cool-shift-x', `${shiftX.toFixed(2)}px`);
+      slice.style.setProperty('--cool-shift-y', `${shiftY.toFixed(2)}px`);
+    });
 
     fireAnimationRaf = requestAnimationFrame(tick);
   };
