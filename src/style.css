@@ -630,6 +630,8 @@ nav{
 
 
 
+
+
 /* Rotoscoped fire traced from the supplied real-fire footage. */
 .fire-rotoscope{
   transform-origin:120px 220px;
@@ -661,32 +663,116 @@ nav{
   mix-blend-mode:screen;
 }
 .fire-stage .fire-svg{
-  filter:drop-shadow(0 0 10px rgba(255,78,0,.4)) drop-shadow(0 0 30px rgba(255,68,0,.18));
+  filter:
+    drop-shadow(0 0 10px rgba(255,78,0,.4))
+    drop-shadow(0 0 30px rgba(255,68,0,.18));
 }
+
 .fire-deform-slice{
   --cool-scale:1;
+  --cool-scale-x:1;
   --cool-skew:0deg;
+  --cool-shift-x:0px;
+  --cool-shift-y:0px;
   transform-box:view-box;
   transform-origin:var(--origin-x) 220px;
-  transform:scaleY(var(--cool-scale)) skewX(var(--cool-skew));
-  transition:
-    transform 230ms cubic-bezier(.2,.72,.2,1);
+  transform:
+    translate(var(--cool-shift-x),var(--cool-shift-y))
+    scaleX(var(--cool-scale-x))
+    scaleY(var(--cool-scale))
+    skewX(var(--cool-skew));
   will-change:transform;
 }
-.fire-stage.hover-cooling .fire-deform-slice{
-  transition-duration:68ms;
-  transition-timing-function:cubic-bezier(.18,.62,.22,1);
-}
+
 .fire-stage.hover-cooling .fire-aura{
   opacity:.86;
 }
+
+/* Smoke now grows from the current rotoscoped flame silhouette. */
+.smoke-layer{
+  position:absolute;
+  z-index:45;
+  left:50%;
+  bottom:9px;
+  width:240px;
+  height:250px;
+  transform:translateX(-50%);
+  pointer-events:none;
+  overflow:visible;
+}
+
+.smoke-wisp{
+  position:absolute;
+  width:var(--w);
+  height:var(--h);
+  margin-left:calc(var(--w) * -.5);
+  margin-top:calc(var(--h) * -.5);
+  border-radius:50%;
+  pointer-events:none;
+  opacity:0;
+  filter:blur(9px);
+  background:
+    radial-gradient(
+      ellipse at 46% 42%,
+      rgba(174,174,174,.58) 0%,
+      rgba(122,122,122,.4) 36%,
+      rgba(78,78,78,.18) 64%,
+      transparent 80%
+    );
+  box-shadow:
+    0 0 18px rgba(255,125,35,calc(var(--warmth) * .28)),
+    0 0 8px rgba(255,82,0,calc(var(--warmth) * .22));
+  animation:smokeFromFire var(--dur) cubic-bezier(.16,.52,.22,1) var(--delay) forwards;
+  will-change:transform,opacity,filter;
+}
+
+:root[data-theme="light"] .smoke-wisp{
+  mix-blend-mode:multiply;
+}
+
+@keyframes smokeFromFire{
+  0%{
+    opacity:0;
+    filter:blur(4px);
+    transform:translate(0,0) scale(.3,.22);
+  }
+  9%{
+    opacity:.7;
+  }
+  24%{
+    opacity:.62;
+    filter:blur(7px);
+    transform:
+      translate(calc(var(--drift-x) * .18),calc(var(--rise) * -.12))
+      scale(.82,.95);
+  }
+  56%{
+    opacity:.4;
+    filter:blur(10px);
+    transform:
+      translate(calc(var(--drift-x) * .58),calc(var(--rise) * -.5))
+      scale(calc(var(--scale) * .72),calc(var(--scale) * .82));
+  }
+  100%{
+    opacity:0;
+    filter:blur(15px);
+    transform:
+      translate(var(--drift-x),calc(var(--rise) * -1))
+      scale(var(--scale));
+  }
+}
+
 @media (hover:hover) and (pointer:fine){
   .fire-stage{
     cursor:crosshair;
   }
 }
+
 @media(prefers-reduced-motion:reduce){
   .fire-deform-slice{
-    transition:none;
+    transform:none;
+  }
+  .smoke-wisp{
+    display:none;
   }
 }
