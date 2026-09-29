@@ -1400,7 +1400,12 @@ nav{
   .ice-crack-branch,
   .ice-shard,
   .water-drop,
-  .freeze-shell{
+  .freeze-rim,
+  .freeze-crystal-web,
+  .freeze-fog,
+  .electric-tail,
+  .electric-tail path,
+  .purple-smoke{
     animation-duration:1ms !important;
   }
 }
