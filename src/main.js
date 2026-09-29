@@ -365,6 +365,11 @@ function shatterFrost(event) {
   }, 210);
 
   window.setTimeout(() => {
+    const impact = stage.querySelector('.frost-impact-layer');
+    if (impact) impact.innerHTML = '';
+  }, 360);
+
+  window.setTimeout(() => {
     stage.classList.remove('frost-cracking');
     stage.classList.add('frost-water-arriving');
   }, 720);
