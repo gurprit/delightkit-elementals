@@ -628,15 +628,19 @@ nav{
 
 
 
+
+
 /* Rotoscoped fire traced from the supplied real-fire footage. */
 .fire-rotoscope{
   transform-origin:120px 220px;
 }
-.roto-frame{
-  display:none;
+.fire-frame-use{
+  pointer-events:none;
+  transition:none;
 }
-.roto-frame.is-active{
-  display:block;
+.fire-frame-a,
+.fire-frame-b{
+  opacity:0;
 }
 .roto-outer{
   fill:#d93600;
@@ -659,11 +663,22 @@ nav{
 .fire-stage .fire-svg{
   filter:drop-shadow(0 0 10px rgba(255,78,0,.4)) drop-shadow(0 0 30px rgba(255,68,0,.18));
 }
-.fire-stage.hover-cooling .fire-aura{
-  opacity:.84;
+.fire-deform-slice{
+  --cool-scale:1;
+  --cool-skew:0deg;
+  transform-box:view-box;
+  transform-origin:var(--origin-x) 220px;
+  transform:scaleY(var(--cool-scale)) skewX(var(--cool-skew));
+  transition:
+    transform 230ms cubic-bezier(.2,.72,.2,1);
+  will-change:transform;
 }
-.fire-cooling-shape{
-  will-change:d;
+.fire-stage.hover-cooling .fire-deform-slice{
+  transition-duration:68ms;
+  transition-timing-function:cubic-bezier(.18,.62,.22,1);
+}
+.fire-stage.hover-cooling .fire-aura{
+  opacity:.86;
 }
 @media (hover:hover) and (pointer:fine){
   .fire-stage{
@@ -671,10 +686,7 @@ nav{
   }
 }
 @media(prefers-reduced-motion:reduce){
-  .roto-frame{
-    display:none;
-  }
-  .roto-frame:first-child{
-    display:block;
+  .fire-deform-slice{
+    transition:none;
   }
 }
