@@ -9,7 +9,7 @@ const EFFECTS = {
   },
   frost: {
     label: 'Frost', glyph: '❄', accent: '#4dbfe9', wash: 'rgba(77,191,233,.20)',
-    description: 'Crystalline shards snap outward, spin and drift down.',
+    description: 'A frozen sphere shivers on hover, cracks from your impact, shatters, then reforms from water.',
     colors: ['#dff8ff','#bcecff','#8edfff','#ffffff','#b7d7ff'],
   },
   petals: {
@@ -209,6 +209,194 @@ function fireMarkup() {
   `;
 }
 
+
+function frostMarkup() {
+  const bubbles = Array.from({ length: 12 }, () => {
+    const x = rand(18, 82);
+    const y = rand(18, 82);
+    const size = rand(2, 7);
+    const opacity = rand(.16, .48);
+    return `<i class="ice-bubble" style="--bx:${x}%;--by:${y}%;--bs:${size}px;--bo:${opacity}"></i>`;
+  }).join('');
+
+  return `
+    <span class="frost-scene" aria-hidden="true">
+      <span class="ice-shadow"></span>
+      <span class="ice-sphere">
+        <span class="ice-depth"></span>
+        <span class="ice-gloss"></span>
+        <span class="ice-bubbles">${bubbles}</span>
+        <span class="ice-rim"></span>
+      </span>
+      <span class="frost-impact-layer"></span>
+      <span class="frost-shard-layer"></span>
+      <span class="water-reform">
+        <span class="water-drop"></span>
+        <span class="freeze-shell"></span>
+      </span>
+    </span>
+  `;
+}
+
+function frostPointFromEvent(stage, event) {
+  const sphere = stage.querySelector('.ice-sphere');
+  const rect = sphere?.getBoundingClientRect();
+  if (!rect) return { x: 90, y: 90 };
+
+  if (!event?.clientX || !event?.clientY) return { x: 90, y: 90 };
+
+  return {
+    x: clamp(((event.clientX - rect.left) / rect.width) * 180, 8, 172),
+    y: clamp(((event.clientY - rect.top) / rect.height) * 180, 8, 172),
+  };
+}
+
+function crackPath(origin, angle, length, branch=false) {
+  const points = [[origin.x, origin.y]];
+  const segments = branch ? 4 : 7;
+  const segmentLength = length / segments;
+
+  for (let i = 1; i <= segments; i++) {
+    const bend = rand(-.18, .18);
+    const a = angle + bend;
+    const spread = segmentLength * i;
+    points.push([
+      origin.x + Math.cos(a) * spread + rand(-4, 4),
+      origin.y + Math.sin(a) * spread + rand(-4, 4),
+    ]);
+  }
+
+  return 'M ' + points.map(([x,y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L ');
+}
+
+function drawFrostCracks(stage, origin) {
+  const layer = stage.querySelector('.frost-impact-layer');
+  if (!layer) return;
+
+  const rays = 9;
+  const paths = [];
+
+  for (let i = 0; i < rays; i++) {
+    const angle = (Math.PI * 2 * i / rays) + rand(-.18, .18);
+    const length = rand(68, 114);
+    paths.push(`<path class="ice-crack-main" style="--crack-delay:${rand(0,75)}ms" d="${crackPath(origin, angle, length)}"></path>`);
+
+    if (Math.random() > .25) {
+      const branchOrigin = {
+        x: origin.x + Math.cos(angle) * length * rand(.35,.62),
+        y: origin.y + Math.sin(angle) * length * rand(.35,.62),
+      };
+      const branchAngle = angle + rand(-1.05, 1.05);
+      paths.push(`<path class="ice-crack-branch" style="--crack-delay:${rand(45,145)}ms" d="${crackPath(branchOrigin, branchAngle, rand(26,55), true)}"></path>`);
+    }
+  }
+
+  layer.innerHTML = `
+    <svg class="ice-cracks-svg" viewBox="0 0 180 180" aria-hidden="true">
+      <circle class="impact-ring" cx="${origin.x}" cy="${origin.y}" r="3"></circle>
+      ${paths.join('')}
+    </svg>
+  `;
+}
+
+function makeFrostShards(stage, origin) {
+  const layer = stage.querySelector('.frost-shard-layer');
+  if (!layer) return;
+  layer.innerHTML = '';
+
+  const count = 28;
+
+  for (let i = 0; i < count; i++) {
+    const shard = document.createElement('i');
+    shard.className = 'ice-shard';
+
+    const angle = rand(-Math.PI, Math.PI);
+    const radius = rand(18, 76);
+    const startX = 90 + Math.cos(angle) * radius * .52;
+    const startY = 90 + Math.sin(angle) * radius * .52;
+    const impactDx = startX - origin.x;
+    const impactDy = startY - origin.y;
+    const impactDistance = Math.max(1, Math.hypot(impactDx, impactDy));
+    const nx = impactDx / impactDistance;
+    const ny = impactDy / impactDistance;
+
+    const velocityX = nx * rand(28, 105) + rand(-22, 22);
+    const kickY = ny * rand(12, 62) - rand(30, 92);
+    const fall = rand(150, 260);
+    const rotate = rand(-420, 420);
+    const size = rand(13, 34);
+    const duration = rand(760, 1280);
+
+    Object.entries({
+      '--sx': `${startX}px`,
+      '--sy': `${startY}px`,
+      '--shard-size': `${size}px`,
+      '--vx': `${velocityX}px`,
+      '--vy': `${kickY}px`,
+      '--fall': `${fall}px`,
+      '--spin': `${rotate}deg`,
+      '--shard-duration': `${duration}ms`,
+      '--shard-delay': `${rand(0, 90)}ms`,
+    }).forEach(([key,value]) => shard.style.setProperty(key, value));
+
+    const p1 = `${rand(0,22).toFixed(0)}% ${rand(0,20).toFixed(0)}%`;
+    const p2 = `${rand(74,100).toFixed(0)}% ${rand(0,28).toFixed(0)}%`;
+    const p3 = `${rand(64,100).toFixed(0)}% ${rand(70,100).toFixed(0)}%`;
+    const p4 = `${rand(0,36).toFixed(0)}% ${rand(68,100).toFixed(0)}%`;
+    shard.style.clipPath = `polygon(${p1},${p2},${p3},${p4})`;
+
+    layer.appendChild(shard);
+  }
+}
+
+function shatterFrost(event) {
+  const stage = document.querySelector('.frost-stage');
+  if (!stage || stage.classList.contains('frost-busy')) return;
+
+  const origin = frostPointFromEvent(stage, event);
+  stage.classList.remove('frost-agitated');
+  stage.classList.add('frost-busy', 'frost-cracking');
+
+  drawFrostCracks(stage, origin);
+
+  window.setTimeout(() => {
+    makeFrostShards(stage, origin);
+    stage.classList.add('frost-shattering');
+  }, 210);
+
+  window.setTimeout(() => {
+    stage.classList.remove('frost-cracking');
+    stage.classList.add('frost-water-arriving');
+  }, 720);
+
+  window.setTimeout(() => {
+    stage.classList.add('frost-freezing');
+  }, 1180);
+
+  window.setTimeout(() => {
+    const impact = stage.querySelector('.frost-impact-layer');
+    const shards = stage.querySelector('.frost-shard-layer');
+    if (impact) impact.innerHTML = '';
+    if (shards) shards.innerHTML = '';
+    stage.classList.remove('frost-busy','frost-shattering','frost-water-arriving','frost-freezing');
+  }, 2300);
+}
+
+function bindFrostInteraction() {
+  const stage = document.querySelector('.frost-stage');
+  if (!stage) return;
+
+  stage.addEventListener('pointerenter', event => {
+    if (event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+    if (!stage.classList.contains('frost-busy')) stage.classList.add('frost-agitated');
+  });
+
+  stage.addEventListener('pointerleave', () => {
+    stage.classList.remove('frost-agitated');
+  });
+}
+
+
 function smokeBurst(target) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
@@ -282,9 +470,13 @@ function stampFire() {
   }, 3300);
 }
 
-function triggerCurrent(target) {
+function triggerCurrent(target, event) {
   if (state.effect === 'embers') {
     stampFire();
+    return;
+  }
+  if (state.effect === 'frost') {
+    shatterFrost(event);
     return;
   }
   burst(target, state.effect);
@@ -300,9 +492,9 @@ function render() {
   document.querySelector('#app').innerHTML = `
     <nav><div class="brand"><strong>DelightKit</strong><span>Elementals Lab</span></div><div class="nav-meta"><small>live physics playground</small><button class="theme-toggle" type="button" aria-label="Switch to ${state.theme === 'dark' ? 'light' : 'dark'} mode"><span>${state.theme === 'dark' ? '☀' : '☾'}</span>${state.theme === 'dark' ? 'Light' : 'Dark'}</button><a href="https://github.com/gurprit/delightkit-elementals" target="_blank">GitHub</a></div></nav>
     <section class="hero">
-      <div class="copy"><p class="eyebrow">TACTILE PARTICLE EFFECTS FOR THE WEB</p><h1>Give interfaces a little <em>weather.</em></h1><p class="lede">Tune the physics live. Fire each effect repeatedly. Keep adjusting until it feels less like CSS and more like a tiny physical event.</p><button class="trigger primary">${state.effect === 'embers' ? 'Stamp out the fire 🔥' : `Trigger ${e.label} ${e.glyph}`}</button></div>
+      <div class="copy"><p class="eyebrow">TACTILE PARTICLE EFFECTS FOR THE WEB</p><h1>Give interfaces a little <em>weather.</em></h1><p class="lede">Tune the physics live. Fire each effect repeatedly. Keep adjusting until it feels less like CSS and more like a tiny physical event.</p><button class="trigger primary">${state.effect === 'embers' ? 'Stamp out the fire 🔥' : state.effect === 'frost' ? 'Shatter the ice ❄' : `Trigger ${e.label} ${e.glyph}`}</button></div>
       <div class="lab">
-        <button class="orb-stage ${state.effect === 'embers' ? 'fire-stage' : ''}">${state.effect === 'embers' ? fireMarkup() : `<span class="orb">${e.glyph}</span>`}<small>${state.effect === 'embers' ? 'press to stamp it out' : 'tap the elemental'}</small></button>
+        <button class="orb-stage ${state.effect === 'embers' ? 'fire-stage' : state.effect === 'frost' ? 'frost-stage' : ''}">${state.effect === 'embers' ? fireMarkup() : state.effect === 'frost' ? frostMarkup() : `<span class="orb">${e.glyph}</span>`}<small>${state.effect === 'embers' ? 'press to stamp it out' : state.effect === 'frost' ? 'hover to destabilise · tap to shatter' : 'tap the elemental'}</small></button>
         <div class="controls"><header><div><small>LIVE TUNING</small><strong>${e.label}</strong></div><button class="reset">Reset</button></header>
           ${range('amount','Particles',6,60,1,state.amount,'')}
           ${range('intensity','Intensity',.5,2,.05,state.intensity,'×')}
@@ -467,13 +659,18 @@ function bind() {
     localStorage.setItem('delightkit-elementals:theme', state.theme);
     render();
   };
-  document.querySelector('.primary').onclick = event => triggerCurrent(event.currentTarget);
-  document.querySelector('.orb-stage').onclick = event => triggerCurrent(event.currentTarget);
+  document.querySelector('.primary').onclick = event => triggerCurrent(event.currentTarget, null);
+  document.querySelector('.orb-stage').onclick = event => triggerCurrent(event.currentTarget, event);
   bindFireHover();
   bindFireAnimation();
+  bindFrostInteraction();
   document.querySelectorAll('.effect').forEach(button => button.onclick = event => {
     state.effect = event.currentTarget.dataset.effect;
     const target = event.currentTarget;
+    if (state.effect === 'embers' || state.effect === 'frost') {
+      render();
+      return;
+    }
     burst(target, state.effect);
     setTimeout(render, 180);
   });
