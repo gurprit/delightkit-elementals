@@ -243,7 +243,7 @@ function frostPointFromEvent(stage, event) {
   const rect = sphere?.getBoundingClientRect();
   if (!rect) return { x: 90, y: 90 };
 
-  if (!event?.clientX || !event?.clientY) return { x: 90, y: 90 };
+  if (typeof event?.clientX !== 'number' || typeof event?.clientY !== 'number') return { x: 90, y: 90 };
 
   return {
     x: clamp(((event.clientX - rect.left) / rect.width) * 180, 8, 172),
