@@ -626,21 +626,44 @@ nav{
 
 
 
-/* Cursor interaction: the local flame height physically collapses toward the bed. */
-.fire-slice-content{
-  --cool-scale:1;
-  transform-box:view-box;
+
+
+/* Rotoscoped fire traced from the supplied real-fire footage. */
+.fire-rotoscope{
   transform-origin:120px 220px;
-  transform:scaleY(var(--cool-scale));
-  transition:transform 260ms cubic-bezier(.2,.72,.2,1);
-  will-change:transform;
 }
-.fire-stage.hover-cooling .fire-slice-content{
-  transition-duration:72ms;
-  transition-timing-function:cubic-bezier(.2,.62,.26,1);
+.roto-frame{
+  display:none;
+}
+.roto-frame.is-active{
+  display:block;
+}
+.roto-outer{
+  fill:#d93600;
+  opacity:.88;
+}
+.roto-orange{
+  fill:#ff6500;
+  opacity:.95;
+}
+.roto-yellow{
+  fill:#ffb000;
+  opacity:.98;
+  mix-blend-mode:screen;
+}
+.roto-core{
+  fill:#fff1a0;
+  opacity:.98;
+  mix-blend-mode:screen;
+}
+.fire-stage .fire-svg{
+  filter:drop-shadow(0 0 10px rgba(255,78,0,.4)) drop-shadow(0 0 30px rgba(255,68,0,.18));
 }
 .fire-stage.hover-cooling .fire-aura{
-  opacity:.9;
+  opacity:.84;
+}
+.fire-cooling-shape{
+  will-change:d;
 }
 @media (hover:hover) and (pointer:fine){
   .fire-stage{
@@ -648,7 +671,10 @@ nav{
   }
 }
 @media(prefers-reduced-motion:reduce){
-  .fire-slice-content{
-    transition:none;
+  .roto-frame{
+    display:none;
+  }
+  .roto-frame:first-child{
+    display:block;
   }
 }
